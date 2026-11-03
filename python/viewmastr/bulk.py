@@ -11,6 +11,7 @@ The simulator and both deconvolution solvers are the R package's Rust code (``ru
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -104,10 +105,12 @@ def augment_data(adata: ad.AnnData, column: str, norm_number: int = 2000, prune:
         new_labels += [t] * (norm_number - n)
     names = ad.utils.make_index_unique(pd.Index([f"stimcell_{t}" for t in new_labels]), join=".")
     sim_obs = pd.DataFrame({column: new_labels}, index=names)
-    out = ad.concat([ad.AnnData(x[keep], obs=adata.obs[keep], var=pd.DataFrame(index=adata.var_names)),
-                     ad.AnnData(sp.vstack(new_x) if new_x else sp.csr_matrix((0, adata.n_vars)),
-                                obs=sim_obs, var=pd.DataFrame(index=adata.var_names))],
-                    join="outer", merge="same")
+    with warnings.catch_warnings():  # input names may repeat; they are made unique below
+        warnings.filterwarnings("ignore", "Observation names are not unique")
+        parts = [ad.AnnData(x[keep], obs=adata.obs[keep], var=pd.DataFrame(index=adata.var_names)),
+                 ad.AnnData(sp.vstack(new_x) if new_x else sp.csr_matrix((0, adata.n_vars)),
+                            obs=sim_obs, var=pd.DataFrame(index=adata.var_names))]
+        out = ad.concat(parts, join="outer", merge="same")
     out.obs_names_make_unique(join=".")
     return out
 
