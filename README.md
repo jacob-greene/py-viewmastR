@@ -72,8 +72,8 @@ atlas (16 types). All runs use the same features, 10 epochs, and the train split
 | Comparison | Pairs | Mean | Min | Max |
 |---|---|---|---|---|
 | R run vs R run | 28 | 0.9915 | 0.9859 | 0.9952 |
-| Python model vs R run | 40 | 0.9929 | 0.9863 | 0.9961 |
-| Python model vs Python model | 10 | 0.9961 | 0.9942 | 0.9983 |
+| Python model vs R run | 40 | 0.9928 | 0.9866 | 0.9960 |
+| Python model vs Python model | 10 | 0.9954 | 0.9934 | 0.9980 |
 
 R runs differ from each other because burn's 16 data-loader threads deliver batches in a
 slightly different order each time. Python inherits the same behaviour (`workers=16`).
