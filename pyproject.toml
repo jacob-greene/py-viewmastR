@@ -8,7 +8,10 @@ version = "0.1.0"
 description = "Python viewmastR: cell-type label transfer for single-cell RNA-seq, trained with the viewmastR burn backend"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Jacob Greene" }]
+authors = [
+    { name = "Jacob Greene" },
+    { name = "Scott Furlan", email = "scottfurlan@gmail.com" },
+]
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -26,7 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tutorials = ["scanpy>=1.10", "jupyter", "nbconvert", "seaborn"]
+tutorials = ["scanpy>=1.10", "jupyter", "nbconvert", "seaborn", "h5py<3.16"]
 test = ["pytest>=7"]
 
 [project.urls]

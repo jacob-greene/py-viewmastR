@@ -89,8 +89,11 @@ Model files are interchangeable. Python labels the same query with an R-trained 
 
 This uses `viewmastR_infer(..., sf_genes=<genes shared by reference and query>)`, the
 size-factor genes R used at training time. Python writes the same files, and R's
-`viewmastR_infer()` and `get_weights()` open them. R's `viewmastR_infer()` itself is not
-reliable at b8acbff, though (see below), so use Python for saved-model inference.
+`viewmastR_infer()` and `get_weights()` open them. With a Seurat query, R's
+`viewmastR_infer()` at b8acbff needs the query genes in the order of `selected_features`
+(see below). With the query rows in that order, R labels the Caron query with each of 5
+Python models; agreement with Python's own labels is 99.5 % to 99.6 %. Python matches
+genes by name, so it does not need the rows in any order.
 [`scripts/parity_r.py`](scripts/parity_r.py) repeats this measurement on any data.
 
 ## Differences from the R package
@@ -98,7 +101,8 @@ reliable at b8acbff, though (see below), so use Python for saved-model inference
 | Topic | R viewmastR 0.5.0 | py-viewmastR |
 |---|---|---|
 | Backend | `nd`, `wgpu` or `candle` | `nd` (CPU) only |
-| Saved-model inference | `viewmastR_infer()` takes size factors over the model features only, then divides the log values again by their column sums in Rust. On the Caron test, R's inference with R's own model (run `a`) matched R's training-time labels for 1.6 % of cells | the training-time normalisation; saved-model labels equal training-time labels |
+| Saved-model inference, gene order | For a Seurat query, `viewmastR_infer()` subsets with `query[selected_features, ]` (`R/inference.R` line 53 at b8acbff). That keeps the object's row order, and the matrix goes to Rust by position. So when `selected_features` is not in query row order, each model weight meets the wrong gene. On the Caron test with R model `a`, agreement with R's training-time labels was 1.6 % with the query rows as loaded, and 99.6 % with the rows pre-sorted into `selected_features` order. Workaround in R: reorder the query rows before the call | matches model features to query genes by name; row order does not matter |
+| Saved-model inference, normalisation | size factors over the model features only, then a second division by column sums in Rust. Each changes few labels (0.4 % and 0.1 % of Caron cells) | the training-time normalisation; saved-model labels equal training-time labels |
 | `augment_data()` | every simulated cell of a type gets the same library size (`newsizes[1]`) | each simulated cell gets its own drawn library size |
 | `tf_idf`, `scale`, `LSImethod` | available | not ported (they change the feature set between reference and query) |
 | Naive Bayes | linfa-bayes | the same model (multinomial, alpha = 1) in numpy |
@@ -111,10 +115,10 @@ They run on public data where possible; set local paths in `tutorials/data_paths
 
 | R article | Python notebook | Data |
 |---|---|---|
-| [How to use viewmastR](https://furlan-lab.github.io/viewmastR/articles/HowTo.html) | [01_how_to](tutorials/01_how_to.ipynb) | Greenleaf reference; T-cell-depleted bone marrow multiome RNA |
+| [How to use viewmastR](https://furlan-lab.github.io/viewmastR/articles/HowTo.html) | [01_how_to](tutorials/01_how_to.ipynb) | Greenleaf reference; T-cell-depleted bone marrow multiome RNA, all 11,744 cells |
 | [A deeper look at viewmastR](https://furlan-lab.github.io/viewmastR/articles/InDepth.html) | [02_in_depth](tutorials/02_in_depth.ipynb) | Greenleaf reference; CD34+ bone marrow multiome RNA |
 | [Bulk dataset as a reference](https://furlan-lab.github.io/viewmastR/articles/BulkReference.html) | [03_bulk_reference](tutorials/03_bulk_reference.ipynb) | Corces bulk RNA-seq; Greenleaf atlas; a large query of your own (h5ad) |
-| [Augment data](https://furlan-lab.github.io/viewmastR/articles/Augment.html) | [04_augment](tutorials/04_augment.ipynb) | Greenleaf reference (fine labels); T-cell-depleted bone marrow |
+| [Augment data](https://furlan-lab.github.io/viewmastR/articles/Augment.html) | [04_augment](tutorials/04_augment.ipynb) | Greenleaf reference (fine labels); T-cell-depleted bone marrow, all 11,744 cells |
 | [Saved models](https://furlan-lab.github.io/viewmastR/articles/SavedModel.html) | [05_saved_model](tutorials/05_saved_model.ipynb) | Greenleaf reference; CD34+ bone marrow |
 | [Extra functions](https://furlan-lab.github.io/viewmastR/articles/Extras.html) | [06_extras](tutorials/06_extras.ipynb) | CD34+ bone marrow |
 | [Large query objects](https://furlan-lab.github.io/viewmastR/articles/BigQuery.html) | [07_big_query](tutorials/07_big_query.ipynb) | Greenleaf reference; a large query of your own (h5ad) |
@@ -143,7 +147,7 @@ If you use py-viewmastR, please cite the viewmastR R package and the datasets yo
 
 - Furlan SN. viewmastR: cell-type classification for single-cell genomics.
   https://github.com/furlan-lab/viewmastR
-- Greene J. py-viewmastR. https://github.com/jacob-greene/py-viewmastR
+- Greene J, Furlan SN. py-viewmastR. https://github.com/jacob-greene/py-viewmastR
 - Greenleaf reference: Granja JM, Klemm S, McGinnis LM, et al. Single-cell multiomic
   analysis identifies regulatory programs in mixed-phenotype acute leukemia. *Nat
   Biotechnol* 37, 1458-1465 (2019).
@@ -153,6 +157,10 @@ If you use py-viewmastR, please cite the viewmastR R package and the datasets yo
 - Bulk haematopoiesis data: Corces MR, Buenrostro JD, Wu B, et al. Lineage-specific and
   single-cell chromatin accessibility charts human hematopoiesis and leukemia evolution.
   *Nat Genet* 48, 1193-1203 (2016).
+
+## Authors
+
+Jacob Greene and Scott Furlan.
 
 ## License
 

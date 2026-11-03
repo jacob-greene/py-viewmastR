@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Scott Furlan is a package author (`pyproject.toml`, README, LICENSE).
+- Tutorials 01 and 04 use every T-cell-depleted bone marrow cell that Cell Ranger called
+  (11,744 cells, both replicates), not only the 7,439 cells in the authors' processed object.
+- README: the R saved-model inference difference is the gene order of Seurat queries, not
+  the normalisation. The normalisation differences are listed separately and are small.
+- The `tutorials` extra pins `h5py<3.16`; newer h5py does not build on older glibc.
+
 ## [0.1.0] - 2026-11-03
 
 ### Added
