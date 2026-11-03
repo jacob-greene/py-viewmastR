@@ -9,7 +9,8 @@ Dataset             Source                                                      
 ==================  ==========================================================  ==========
 Greenleaf BM atlas  Granja et al. 2019 (GEO GSE139369), as an h5ad of counts    local path
 BM multiome RNA     Persad et al. 2023 (SEACells), Zenodo 6383269,              download
-                    T-cell-depleted bone marrow
+                    T-cell-depleted bone marrow, both replicates: every cell
+                    Cell Ranger called, plus the authors' labels where present
 CD34 multiome RNA   Persad et al. 2023 (SEACells), Zenodo 6383269,              download
                     CD34+ enriched bone marrow
 Corces bulk RNA     Corces et al. 2016 (GEO GSE74246), as shipped with the      download
@@ -22,10 +23,12 @@ from __future__ import annotations
 
 import json
 import urllib.request
+import warnings
 from pathlib import Path
 
 import anndata as ad
 import pandas as pd
+import scanpy as sc
 
 HERE = Path(__file__).resolve().parent
 ZENODO = "https://zenodo.org/api/records/6383269/files/{}/content"
@@ -66,6 +69,31 @@ def multiome_rna(which: str) -> ad.AnnData:
     a = ad.read_h5ad(_download(ZENODO.format(f"{which}_multiome_rna.h5ad"), f"{which}_multiome_rna.h5ad"))
     out = ad.AnnData(a.raw.X.copy(), obs=a.obs[["celltype"]].copy(), var=pd.DataFrame(index=a.var_names),
                      obsm={"X_umap": a.obsm["X_umap"]}, uns={"celltype_colors": a.uns["celltype_colors"]})
+    return out
+
+
+def bm_tcelldep_full() -> ad.AnnData:
+    """All T-cell-depleted bone marrow cells (Persad et al. 2023), both replicates.
+
+    Reads the Cell Ranger filtered matrices, so it keeps the cells the authors removed in
+    their quality control. Returns raw RNA counts in ``.X``, ``sample`` in ``.obs``, and the
+    authors' ``celltype``; cells without an author label get ``"unlabelled"``.
+    """
+    parts = []
+    for rep in (1, 2):
+        name = f"BM_Tcelldep_Rep{rep}_filtered_feature_bc_matrix.h5"
+        with warnings.catch_warnings():  # duplicate gene names, made unique below
+            warnings.simplefilter("ignore", UserWarning)
+            a = sc.read_10x_h5(_download(ZENODO.format(name), name))
+        a.var_names_make_unique()
+        sample = f"IM-1393_BoneMarrow_TcellDep_{rep}_multiome"
+        a.obs_names = [f"{sample}#{b}" for b in a.obs_names]
+        a.obs["sample"] = f"rep{rep}"
+        parts.append(a)
+    out = ad.concat(parts, join="inner")
+    out.var = pd.DataFrame(index=out.var_names)
+    authors = multiome_rna("bm").obs["celltype"].astype(str)
+    out.obs["celltype"] = pd.Categorical(authors.reindex(out.obs_names).fillna("unlabelled").to_numpy())
     return out
 
 
