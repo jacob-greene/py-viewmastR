@@ -1,0 +1,27 @@
+# Build artefacts
+/target/
+rust/target/
+*.so
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+build/
+.venv/
+
+# Local data paths and downloaded data (never commit data)
+tutorials/data_paths.json
+tutorials/data/
+*.h5ad
+*.h5mu
+*.h5
+*.rds
+*.qs2
+*.mtx.gz
+*.mpk
+viewmastr_models/
+
+# Editors and notebooks
+.ipynb_checkpoints/
+.DS_Store
+.pytest_cache/

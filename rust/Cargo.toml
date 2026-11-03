@@ -1,0 +1,17 @@
+[package]
+name = "viewmastr-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+burn = { version = "0.18.0", default-features = false, features = ["std", "ndarray", "autodiff", "dataset"] }
+pyo3 = { version = "0.25", features = ["extension-module", "abi3-py310"] }
+numpy = "0.25"
+rand = "0.9"
+rand_distr = "0.5"
+rayon = "1.10"
