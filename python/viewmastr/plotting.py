@@ -17,15 +17,17 @@ def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | Non
                      ax=None, fontsize: float = 7):
     """Predicted (rows) against true (columns) labels, coloured by percent of each column.
 
-    Cells show counts. When the two label sets share names, the colour-bar label gives the
-    accuracy: the share of cells whose predicted label equals the true label. ``cols`` maps
+    Cells show counts. When one label set contains the other (one vocabulary), the colour-bar
+    label gives the accuracy: the share of cells whose predicted label equals the true label.
+    Two different vocabularies that share a few names get no accuracy. ``cols`` maps
     labels to colours; each tick label then sits on a box of its colour.
     """
     pred, gt = pd.Series(np.asarray(pred, dtype=str)), pd.Series(np.asarray(gt, dtype=str))
     tab = pd.crosstab(pred, gt)
     pct = tab / tab.sum(0) * 100
-    shared = set(tab.index) & set(tab.columns)
-    acc = 100 * float((pred.to_numpy() == gt.to_numpy()).mean()) if shared else None
+    rows, columns = set(tab.index), set(tab.columns)
+    one_vocabulary = rows <= columns or columns <= rows
+    acc = 100 * float((pred.to_numpy() == gt.to_numpy()).mean()) if one_vocabulary else None
 
     nr, nc = tab.shape
     ax = ax or plt.subplots(figsize=(0.35 * nc + 2.5, 0.3 * nr + 2))[1]

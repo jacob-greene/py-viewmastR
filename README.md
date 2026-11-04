@@ -16,7 +16,8 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 
 ## Example
 
-A model trained on a healthy bone marrow atlas (left) labels a separate bone marrow dataset.
+A model trained on a healthy bone marrow atlas (left, BoneMarrowMap) labels a separate bone
+marrow dataset.
 The query is shown on its own published UMAP, coloured by its authors' labels (middle) and by
 the viewmastR prediction (right). Colours are those of `viewmastr.palette`.
 
@@ -30,10 +31,10 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 
 | Item | Value |
 |---|---|
-| Reference | Granja et al. 2019 bone marrow atlas, 36,318 cells, 16 cell types |
+| Reference | BoneMarrowMap atlas (Zeng et al. 2025), 24 broad cell types, 3,000 cells per type after `augment_data()` (72,000 cells, 6,567 simulated) |
 | Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
 | Model | default multinomial logistic regression, 5 epochs |
-| Accuracy on held-out reference cells | 95.5 % (7,264 cells) |
+| Accuracy on held-out real reference cells | 84.8 % (21,057 cells, never simulated) |
 
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
 
@@ -86,6 +87,10 @@ If you use py-viewmastR, please cite the viewmastR R package and the datasets yo
 
 The example above uses these public datasets:
 
+- Zeng AGX, Iacobucci I, Shah S, et al. Single-cell transcriptional atlas of human
+  hematopoiesis reveals genetic and hierarchy-based determinants of aberrant AML
+  differentiation. *Blood Cancer Discov* 6, 307-324 (2025). doi:10.1158/2643-3230.BCD-24-0342.
+  The annotated h5ad linked from https://github.com/andygxzeng/BoneMarrowMap.
 - Granja JM, Klemm S, McGinnis LM, et al. Single-cell multiomic analysis identifies
   regulatory programs in mixed-phenotype acute leukemia. *Nat Biotechnol* 37, 1458-1465
   (2019). GEO GSE139369.

@@ -8,6 +8,8 @@ as h5ad, a large query) come from ``tutorials/data_paths.json``, which is not in
 Dataset             Source                                                      Access
 ==================  ==========================================================  ==========
 Greenleaf BM atlas  Granja et al. 2019 (GEO GSE139369), as an h5ad of counts    local path
+BoneMarrowMap       Zeng et al. 2025, bone marrow atlas of 6 studies, 263,159     download
+                    cells, 55 fine / 24 broad cell types, counts and UMAP
 BM multiome RNA     Persad et al. 2023 (SEACells), T-cell-depleted bone marrow,   download
                     8,627 cells, 18 cell types, with the authors' UMAP. The
                     file the Mellon tutorial downloads (Otto et al. 2024)
@@ -27,6 +29,7 @@ import urllib.request
 from pathlib import Path
 
 import anndata as ad
+import numpy as np
 import pandas as pd
 import scanpy as sc
 
@@ -35,6 +38,9 @@ ZENODO = "https://zenodo.org/api/records/6383269/files/{}/content"
 MELLON = ("https://fh-pi-setty-m-eco-public.s3.amazonaws.com/mellon-tutorial/"
           "preprocessed_t-cell-depleted-bm-rna.h5ad")
 MELLON_MD5 = "64909a0be6cd51fe79b7d70b5f19bf1c"
+BONEMARROWMAP = ("https://bonemarrowmap.s3.us-east-2.amazonaws.com/"
+                 "BoneMarrowMap_Annotated_Dataset_expandedFeatures.h5ad")
+BONEMARROWMAP_MD5 = "9cd413810545bb1bed79ad4634f3985c"
 VIEWMASTR_RAW = "https://raw.githubusercontent.com/furlan-lab/viewmastR/main/inst/extdata/deconvolute/{}"
 
 
@@ -98,6 +104,66 @@ def bm_tcelldep() -> ad.AnnData:
     a = ad.read_h5ad(_download(MELLON, "preprocessed_t-cell-depleted-bm-rna.h5ad", MELLON_MD5))
     return ad.AnnData(a.raw.X.copy(), obs=a.obs[["sample", "celltype"]].copy(),
                       var=pd.DataFrame(index=a.var_names), obsm={"X_umap": a.obsm["X_umap"]})
+
+
+def bonemarrowmap_reference() -> ad.AnnData:
+    """BoneMarrowMap healthy bone marrow atlas (Zeng et al. 2025), loaded as is.
+
+    The annotated h5ad from github.com/andygxzeng/BoneMarrowMap (3.7 GB): 263,159 cells from
+    six studies, 34,009 genes. Returns raw counts in ``.X``, ``CellType`` (55 types),
+    ``CellType_Broad`` (24 types) and ``Study`` in ``.obs``, and the stored UMAP. Needs about
+    12 GB of memory.
+    """
+    a = ad.read_h5ad(_download(BONEMARROWMAP, "BoneMarrowMap_Annotated_Dataset_expandedFeatures.h5ad",
+                               BONEMARROWMAP_MD5))
+    return ad.AnnData(a.X, obs=a.obs[["CellType", "CellType_Broad", "Study"]].copy(),
+                      var=pd.DataFrame(index=a.var_names), obsm={"X_umap": a.obsm["X_umap"]})
+
+
+def bonemarrowmap_split(ref: ad.AnnData, label: str = "CellType_Broad", holdout: float = 0.2,
+                        max_held: int = 1000, seed: int = 0) -> tuple[ad.AnnData, ad.AnnData]:
+    """Split real reference cells into (train, held out) per type.
+
+    Of each type, ``holdout`` of the cells (at most ``max_held``) are held out. Held-out cells
+    are never augmented, so they give an honest accuracy for every model trained on ``train``.
+    """
+    rng = np.random.default_rng(seed)
+    held = np.zeros(ref.n_obs, dtype=bool)
+    for _, idx in ref.obs.groupby(label, observed=True).indices.items():
+        held[rng.choice(idx, min(int(len(idx) * holdout), max_held), replace=False)] = True
+    return ref[~held].copy(), ref[held].copy()
+
+
+def bonemarrowmap_augmented(label: str = "CellType_Broad", norm_number: int = 3000,
+                            seed: int = 0) -> tuple[ad.AnnData, ad.AnnData]:
+    """BoneMarrowMap reference balanced with ``viewmastr.augment_data``, and its held-out cells.
+
+    Splits the atlas with :func:`bonemarrowmap_split`, then balances the training cells to
+    ``norm_number`` per type (``prune=True``): larger types are down-sampled, smaller types
+    get simulated cells. ``obs["simulated"]`` marks simulated cells; real cells keep the
+    stored UMAP (simulated cells have NaN). Both parts are cached in ``cache_dir``.
+    Returns ``(augmented, held_out)``.
+    """
+    import viewmastr as vm
+
+    cache = Path(config()["cache_dir"])
+    stem = f"bonemarrowmap_{label}_n{norm_number}_s{seed}"
+    paths = cache / f"{stem}_augmented.h5ad", cache / f"{stem}_heldout.h5ad"
+    if not all(p.exists() for p in paths):
+        ref = bonemarrowmap_reference()
+        train, held = bonemarrowmap_split(ref, label, seed=seed)
+        del ref
+        aug = vm.augment_data(train, label, norm_number=norm_number, prune=True, seed=seed)
+        aug.obs["simulated"] = aug.obs_names.str.startswith("stimcell_")
+        umap = np.full((aug.n_obs, 2), np.nan, dtype=np.float32)
+        real = ~aug.obs["simulated"].to_numpy()
+        umap[real] = train[aug.obs_names[real]].obsm["X_umap"]
+        aug.obsm["X_umap"] = umap
+        aug.obs = aug.obs[[label, "simulated"]]
+        for a, p in zip((aug, held), paths):
+            a.write_h5ad(p.with_suffix(".part"), compression="gzip")
+            p.with_suffix(".part").rename(p)
+    return ad.read_h5ad(paths[0]), ad.read_h5ad(paths[1])
 
 
 def corces_bulk() -> pd.DataFrame:

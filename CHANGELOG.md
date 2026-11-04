@@ -18,6 +18,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Tutorials 01 and 04 and the README figures use the BoneMarrowMap atlas (Zeng et al. 2025,
+  broad labels) as the reference for the T-cell-depleted query, balanced with
+  `augment_data()` to 3,000 cells per type. New loaders `tutorial_data.bonemarrowmap_reference()`,
+  `bonemarrowmap_split()` and `bonemarrowmap_augmented()`; the atlas downloads from its public
+  URL and is md5-checked. Other tutorials keep the Granja et al. 2019 reference.
+- `viewmastr.palette` covers the BoneMarrowMap broad labels: 15 aliases and 3 new colours
+  (`Late GMP`, `Cycling Progenitor`, `Stromal`).
+- `confusion_matrix()` reports an accuracy only when one label set contains the other. Two
+  vocabularies that share a few names (for example `cDC`) no longer get a meaningless accuracy.
 - Shorter README. The function table, the R agreement measurements and the R differences
   moved to `docs/r_comparison.md`; the tutorial table to `tutorials/README.md`; build notes
   to `docs/development.md`.

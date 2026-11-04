@@ -130,3 +130,21 @@ def test_palette_aliases_and_set_colors():
     vm.palette.set_colors(a, "t")
     assert list(a.uns["t_colors"]) == [vm.palette.color(c) for c in a.obs["t"].cat.categories]
     assert len(set(vm.palette.COLORS.values())) == len(vm.palette.COLORS)
+    bonemarrowmap_broad = [
+        "B", "CD4 Memory T", "CD8 Memory T", "Cycling Progenitor", "Early Erythroid", "Early GMP",
+        "Early Lymphoid", "EoBasoMast Precursor", "HSC MPP", "LMPP", "Late Erythroid", "Late GMP",
+        "MEP", "Megakaryocyte Precursor", "Monocyte", "NK", "Naive T", "Plasma_Cell", "Pre-B",
+        "Pro-B", "Pro-Monocyte", "Stromal", "cDC", "pDC"]
+    assert all(vm.palette.known(k) for k in bonemarrowmap_broad)
+    assert len({vm.palette.color(k) for k in bonemarrowmap_broad}) == len(bonemarrowmap_broad)
+
+
+def test_confusion_matrix_accuracy_only_for_one_vocabulary():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    same = vm.confusion_matrix(["a", "b", "b"], ["a", "b", "a"])
+    assert "accuracy 66.67%" in same.figure.axes[-1].get_ylabel()
+    mixed = vm.confusion_matrix(["a", "x", "y"], ["a", "b", "c"])  # shares only "a"
+    assert "accuracy" not in mixed.figure.axes[-1].get_ylabel()
+    plt.close("all")

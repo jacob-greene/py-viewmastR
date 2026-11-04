@@ -1,7 +1,8 @@
 """One colour per bone marrow cell type, shared by every tutorial and README figure.
 
 The colours of the T-cell-depleted bone marrow multiome object (Persad et al. 2023,
-``uns["celltype_colors"]``) are the base. Labels of the other datasets use the colour of
+``uns["celltype_colors"]``) are the base. Labels of the other datasets (Granja et al. 2019,
+BoneMarrowMap of Zeng et al. 2025, Corces et al. 2016) use the colour of
 the same population under its name there (``ALIASES``). Labels with no counterpart got new
 colours, chosen to be far (CIEDE2000) from every other colour here.
 
@@ -56,10 +57,15 @@ COLORS: dict[str, str] = {
     "Blast": "#3a3108",
     "LSC": "#4a7b00",
     "rHSC": "#2100ff",
+    # BoneMarrowMap broad labels with no counterpart above
+    "Late GMP": "#5a634a",
+    "Cycling Progenitor": "#94ad9c",
+    "Stromal": "#ad8c52",
     "Other": "#d9d9d9",
 }
 
-#: Other names for the same population (Granja et al. 2019; Corces et al. 2016 bulk).
+#: Other names for the same population (Granja et al. 2019; BoneMarrowMap ``CellType_Broad``,
+#: Zeng et al. 2025; Corces et al. 2016 bulk).
 ALIASES: dict[str, str] = {
     "CMP.LMPP": "HMP",
     "MPP": "HMP",
@@ -74,6 +80,21 @@ ALIASES: dict[str, str] = {
     "CD4Tcell": "CD4.N",
     "CD8Tcell": "CD8.N",
     "Blasts": "Blast",
+    "HSC MPP": "HSC",
+    "Early Lymphoid": "CLP",
+    "Pro-B": "proB",
+    "Pre-B": "preB",
+    "Early GMP": "MyeloidPre",
+    "Pro-Monocyte": "MonoPre",
+    "Monocyte": "Mono",
+    "Megakaryocyte Precursor": "Mega",
+    "Early Erythroid": "EryPre1",
+    "Late Erythroid": "Ery",
+    "EoBasoMast Precursor": "Early.Baso",
+    "Naive T": "T",
+    "CD4 Memory T": "CD4.M",
+    "CD8 Memory T": "CD8.EM",
+    "Plasma_Cell": "Plasma",
 }
 
 _PREFIX = re.compile(r"^\d+_")  # "11_CD14.Mono" -> "CD14.Mono"
