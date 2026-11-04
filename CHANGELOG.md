@@ -6,8 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- README figures: reference labels and query predictions on a shared UMAP, and a
+  confusion matrix of predicted against author labels (`scripts/readme_figures.py`,
+  `docs/img/`).
+
 ### Changed
 
+- Shorter README. The function table, the R agreement measurements and the R differences
+  moved to `docs/r_comparison.md`; the tutorial table to `tutorials/README.md`; build notes
+  to `docs/development.md`.
 - Scott Furlan is a package author (`pyproject.toml`, README, LICENSE).
 - Tutorials 01 and 04 use every T-cell-depleted bone marrow cell that Cell Ranger called
   (11,744 cells, both replicates), not only the 7,439 cells in the authors' processed object.
