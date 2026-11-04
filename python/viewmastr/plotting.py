@@ -6,8 +6,11 @@ from __future__ import annotations
 from typing import Mapping, Sequence
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgb
 import numpy as np
 import pandas as pd
+
+from . import palette
 
 
 def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | None = None,
@@ -16,7 +19,7 @@ def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | Non
 
     Cells show counts. When the two label sets share names, the colour-bar label gives the
     accuracy: the share of cells whose predicted label equals the true label. ``cols`` maps
-    labels to colours for the tick labels.
+    labels to colours; each tick label then sits on a box of its colour.
     """
     pred, gt = pd.Series(np.asarray(pred, dtype=str)), pd.Series(np.asarray(gt, dtype=str))
     tab = pd.crosstab(pred, gt)
@@ -39,7 +42,11 @@ def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | Non
     ax.grid(False)
     if cols:
         for t in ax.get_xticklabels() + ax.get_yticklabels():
-            t.set_color(cols.get(t.get_text(), "black"))
+            c = cols.get(t.get_text())
+            if c is not None:
+                r, g, b_ = to_rgb(c)
+                t.set_color("black" if 0.299 * r + 0.587 * g + 0.114 * b_ > 0.5 else "white")
+                t.set_bbox(dict(facecolor=c, edgecolor="none", pad=1.0))
     cb = plt.colorbar(im, ax=ax, fraction=0.04)
     cb.set_label("Percent of column" + (f" (accuracy {acc:.2f}%)" if acc is not None else ""))
     return ax
@@ -80,7 +87,10 @@ def plot_deconvolution(result, observed_counts: pd.DataFrame | None = None,
     fig, axes = plt.subplots(len(panels), 1, figsize=(9, 3.2 * len(panels)), squeeze=False)
     for ax, p in zip(axes[:, 0], panels):
         if p == "proportions":
-            result.proportions.T.plot.bar(stacked=True, ax=ax, width=0.9, legend=False, colormap="tab20")
+            types = list(result.proportions.index)
+            style = ({"color": [palette.color(t) for t in types]} if all(palette.known(t) for t in types)
+                     else {"colormap": "tab20"})
+            result.proportions.T.plot.bar(stacked=True, ax=ax, width=0.9, legend=False, **style)
             ax.set(title="Cell-type proportions (without the intercept)", ylabel="Proportion", xlabel="")
             ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=6, frameon=False)
             ax.tick_params(axis="x", labelsize=5)

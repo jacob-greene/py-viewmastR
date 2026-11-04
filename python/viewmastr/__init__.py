@@ -4,6 +4,7 @@ A Python interface to viewmastR (Furlan lab, https://github.com/furlan-lab/viewm
 train in the R package's own Rust/burn code, so Python and R results are interchangeable.
 """
 
+from . import palette
 from .bulk import Deconvolution, augment_data, deconvolve_bulk, splat_bulk_reference
 from .core import TrainingSet, ViewmastrResult, get_weights, setup_training, viewmastR, viewmastR_infer
 from .features import (
@@ -25,5 +26,5 @@ __all__ = [
     "plot_feature_dispersion", "common_features",
     "splat_bulk_reference", "augment_data", "deconvolve_bulk", "Deconvolution",
     "confusion_matrix", "plot_training_data", "plot_deconvolution",
-    "read_3file", "write_3file",
+    "read_3file", "write_3file", "palette",
 ]

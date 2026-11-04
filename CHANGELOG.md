@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `viewmastr.palette`: one colour per bone marrow cell type, used by every tutorial and
+  README figure. Base colours are those of the T-cell-depleted bone marrow multiome object;
+  the Granja et al. 2019 and Corces et al. 2016 labels map onto them. `plot_deconvolution()`
+  uses it when every cell type has a colour.
 - README figures: reference labels and query predictions on a shared UMAP, and a
   confusion matrix of predicted against author labels (`scripts/readme_figures.py`,
   `docs/img/`).
@@ -18,8 +22,12 @@ All notable changes to this project are documented here. The format follows
   moved to `docs/r_comparison.md`; the tutorial table to `tutorials/README.md`; build notes
   to `docs/development.md`.
 - Scott Furlan is a package author (`pyproject.toml`, README, LICENSE).
-- Tutorials 01 and 04 use every T-cell-depleted bone marrow cell that Cell Ranger called
-  (11,744 cells, both replicates), not only the 7,439 cells in the authors' processed object.
+- Tutorials 01 and 04 and the README figures use the T-cell-depleted bone marrow multiome
+  object as published for the Mellon tutorial (8,627 cells), with its stored UMAP and labels.
+  Nothing is re-normalised or re-embedded. `tutorial_data.bm_tcelldep()` replaces
+  `bm_tcelldep_full()`.
+- The README figures show the reference and the query on their own stored UMAPs, not on a
+  new UMAP of the model genes.
 - README: the R saved-model inference difference is the gene order of Seurat queries, not
   the normalisation. The normalisation differences are listed separately and are small.
 - The `tutorials` extra pins `h5py<3.16`; newer h5py does not build on older glibc.

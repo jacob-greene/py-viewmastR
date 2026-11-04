@@ -119,3 +119,14 @@ def test_deconvolution_recovers_mixture(method):
     bulk = pd.DataFrame(rng.poisson(sig.to_numpy() @ truth * 2e5), index=sig.index, columns=["s1", "s2"])
     res = vm.deconvolve_bulk(sig, bulk, lengths, method=method, max_iter=3000, seed=1, verbose=False)
     assert np.allclose(res.proportions.to_numpy(), truth, atol=0.05)
+
+
+def test_palette_aliases_and_set_colors():
+    assert vm.palette.color("11_CD14.Mono") == vm.palette.color("Mono")
+    assert vm.palette.color("Late.Eryth") == vm.palette.COLORS["Ery"]
+    assert vm.palette.color("no such type") == vm.palette.COLORS["Other"]
+    assert not vm.palette.known("no such type")
+    a = ad.AnnData(np.zeros((3, 1)), obs=pd.DataFrame({"t": ["HSC", "B", "HSC"]}, index=list("abc")))
+    vm.palette.set_colors(a, "t")
+    assert list(a.uns["t_colors"]) == [vm.palette.color(c) for c in a.obs["t"].cat.categories]
+    assert len(set(vm.palette.COLORS.values())) == len(vm.palette.COLORS)

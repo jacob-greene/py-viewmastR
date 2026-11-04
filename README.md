@@ -16,10 +16,11 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 
 ## Example
 
-A model trained on a healthy bone marrow atlas (left) labels a separate bone marrow dataset
-(right). Each query cell is placed on the reference UMAP and coloured by its predicted label.
+A model trained on a healthy bone marrow atlas (left) labels a separate bone marrow dataset.
+The query is shown on its own published UMAP, coloured by its authors' labels (middle) and by
+the viewmastR prediction (right). Colours are those of `viewmastr.palette`.
 
-![Reference labels and query predictions on a shared UMAP](docs/img/transfer_umap.png)
+![Reference labels, query author labels and query predictions](docs/img/transfer_umap.png)
 
 The query authors labelled these cells independently, with their own names. Each column is
 one author label; colour is the fraction of its cells that get each predicted label. The two
@@ -30,9 +31,9 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 | Item | Value |
 |---|---|
 | Reference | Granja et al. 2019 bone marrow atlas, 36,318 cells, 16 cell types |
-| Query | Persad et al. 2023 T-cell-depleted bone marrow, 11,744 cells |
+| Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
 | Model | default multinomial logistic regression, 5 epochs |
-| Accuracy on held-out reference cells | 95.3 % (7,264 cells) |
+| Accuracy on held-out reference cells | 95.5 % (7,264 cells) |
 
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
 
@@ -91,6 +92,8 @@ The example above uses these public datasets:
 - Persad S, Choo ZN, Dien C, et al. SEACells infers transcriptional and epigenomic cellular
   states from single-cell genomics data. *Nat Biotechnol* 41, 1746-1757 (2023). Zenodo
   record 6383269.
+  The processed object with UMAP is the file the [Mellon](https://github.com/settylab/Mellon)
+  tutorial downloads (Otto DJ, et al. *Nat Methods* 2024).
 
 ## Authors
 
