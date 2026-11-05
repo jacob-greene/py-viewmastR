@@ -12,8 +12,9 @@ re-embedded. Colours come from ``viewmastr.palette``; a fine type with no palett
 own gets the next colour of ``EXTRA`` (31 colours far from the palette in CIELAB).
 
 Writes ``docs/img/transfer_umap.png``: three UMAPs and a heatmap of the predicted label against the
-query authors' label. The prediction legend lists only types called on at least 50 query cells
-(or 0.5 % of them, if larger); the heatmap keeps all 55 types, so uncalled types show as empty rows.
+query authors' label. The prediction legend lists types called on at least 10 query cells; a mature type is
+listed only if the query authors label that population too (``MATURE``). The heatmap keeps all 55
+types, so uncalled types show as empty rows.
 
     PYTHONPATH=tutorials python scripts/readme_figures.py [--subsample N]
 
@@ -39,6 +40,8 @@ import viewmastr as vm
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "img"
 SEED = 20261103
+TITLE = ("ViewmastR: de novo celltyping and refinement based on transfer learning from reference "
+         "annotations")
 QSIZE = 6  # dot area of the two query UMAPs (the 118,509-cell reference keeps 1.5)
 ORDER = list(vm.palette.COLORS)
 # BoneMarrowMap ``CellType``, by lineage
@@ -72,7 +75,7 @@ EXTRA = [
 ]
 # Fine types grouped under one query author label, so that like types in the reference and the
 # query share a hue: the label of the same population by name if there is one, else the author
-# label that most predicted cells of the type carry (cross-tab of job 11823840), else by lineage
+# label that most predicted cells of the type carry (the panel d cross-tab), else by lineage
 # (Megakaryocyte, Basophilic Erythroblast: never called). The first type keeps the author label's
 # palette colour; each other type gets the shade of it (hue within 0.04, HLS lightness within 0.3)
 # farthest in CIELAB from every colour already used. Types in no group keep the colour set above.
@@ -130,6 +133,27 @@ for _types in FAMILY.values():
     for _k in _types[1:]:
         COLOR[_k] = shade(COLOR[_types[0]], _taken)
         _taken.append(COLOR[_k])
+# Types that must not share a hue with the author label of their group (Mature B against the query
+# authors' NaiveB): each gets the unused ``EXTRA`` colour farthest in CIELAB from every colour in use.
+DISTINCT = ["Mature B"]
+for _k in DISTINCT:
+    _free = [c for c in EXTRA if c not in COLOR.values()]
+    _pts = np.array([lab(c) for c in _taken])
+    COLOR[_k] = max(_free, key=lambda c: np.linalg.norm(_pts - lab(c), axis=1).min())
+    _taken.append(COLOR[_k])
+# Mature reference types, by the palette name of the population. The column 3 legend shows a mature
+# type only if the query authors label that population too; developing types need no such match.
+MATURE = {
+    "Mature B": "NaiveB", "Plasma Cell": "Plasma", "CD14 Mono": "Mono", "CD16 Mono": "CD16.Mono",
+    "cDC1": "cDC", "cDC2": "cDC", "pDC": "pDC", "Megakaryocyte": "Mega",
+    "Orthochromatic Erythroblast": "Ery", "CD4 Naive": "CD4.N", "CD4 Central Memory": "CD4.M",
+    "CD4 Effector Memory": "CD4.M", "CD4 Regulatory": "T", "CD8 Naive": "CD8.N",
+    "CD8 Central Memory": "CD8.CM", "CD8 Effector Memory 1": "CD8.EM",
+    "CD8 Effector Memory 2": "CD8.EM", "CD8 Tissue Resident Memory": "CD8.EM",
+    "T Proliferating": "T", "NK CD56high": "NK", "NK": "NK", "NK Proliferating": "NK",
+    "Stromal": "Stromal",
+}
+MIN_CELLS = 10  # column 3 legend: types predicted for at least this many query cells
 
 
 def color(label) -> str:
@@ -199,21 +223,28 @@ def main():
 
     # Each dataset on its own stored UMAP
     pred = query.obs["viewmastR_pred"].astype(str)
+    # Column 3 legend: types called on at least MIN_CELLS query cells; a mature type also needs its
+    # population among the query authors' labels. The heatmap keeps all types.
+    n_called = pred.value_counts()
+    authors = set(query.obs["celltype"].astype(str))
+    legend_rows = []
+    for k in FINE_ORDER:
+        n = int(n_called.get(k, 0))
+        why = ("fewer than %d cells" % MIN_CELLS if n < MIN_CELLS else
+               "mature, not in authors' labels" if k in MATURE and MATURE[k] not in authors else "")
+        legend_rows.append((k, n, "hidden" if why else "shown", why))
+    legend_tab = pd.DataFrame(legend_rows, columns=["type", "cells", "legend", "reason"])
+    shown = legend_tab.loc[legend_tab["legend"] == "shown", "type"].tolist()
+    print(f"column 3 legend: {len(shown)} of {len(FINE_ORDER)} types shown")
+    print(legend_tab.to_string(index=False))
+
     if args.panel:
         fig, ax = plt.subplots(figsize=(6, 9))
         umap_panel(ax, np.asarray(query.obsm["X_umap"]), pred, "Query: viewmastR predictions",
-                   size=QSIZE)
+                   legend=shown, size=QSIZE)
         fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.36)
         fig.savefig(OUT / "test_panel.png", dpi=150)
         return
-    # Column 3 legend: only types called on at least CUT query cells; the heatmap keeps all types
-    n_called = pred.value_counts()
-    cut = max(50, int(np.ceil(0.005 * query.n_obs)))
-    shown = [k for k in FINE_ORDER if n_called.get(k, 0) >= cut]
-    dropped = pd.Series({k: int(n_called.get(k, 0)) for k in FINE_ORDER if k not in shown})
-    print(f"column 3 legend cut {cut} cells; dropped {len(dropped)} types")
-    print(dropped.to_string())
-
     # Predicted reference label vs the query authors' label, fraction of each column
     author = query.obs["celltype"].astype(str)
     tab = pd.crosstab(pred, author)
@@ -224,15 +255,15 @@ def main():
     # One figure: reference labels, query author labels, query predictions, heatmap
     real = ref[~ref.obs["simulated"].to_numpy()]
     fig = plt.figure(figsize=(26, 10))
-    gs = fig.add_gridspec(1, 3, left=0.005, right=0.70, top=0.94, bottom=0.36, wspace=0.05)
+    gs = fig.add_gridspec(1, 3, left=0.005, right=0.70, top=0.90, bottom=0.36, wspace=0.05)
     axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
     umap_panel(axes[0], np.asarray(real.obsm["X_umap"]), real.obs[label],
-               f"Reference: BoneMarrowMap CellType ({real.n_obs:,} real cells)")
+               f"(a) Reference: BoneMarrowMap CellType ({real.n_obs:,} real cells)")
     umap_panel(axes[1], np.asarray(query.obsm["X_umap"]), query.obs["celltype"],
-               f"Query: authors' labels ({query.n_obs:,} cells)", size=QSIZE)
+               f"(b) Query: authors' labels ({query.n_obs:,} cells)", size=QSIZE)
     umap_panel(axes[2], np.asarray(query.obsm["X_umap"]), pred,
-               "Query: viewmastR predictions", legend=shown, size=QSIZE)
-    x0, x1, y0, y1 = 0.800, 0.955, 0.16, 0.90
+               "(c) Query: viewmastR predictions", legend=shown, size=QSIZE)
+    x0, x1, y0, y1 = 0.800, 0.955, 0.16, 0.86
     ax = fig.add_axes([x0, y0, x1 - x0, y1 - y0])
     im = ax.imshow(frac.to_numpy(), aspect="auto", cmap="viridis", vmin=0, vmax=1,
                    interpolation="nearest")
@@ -246,7 +277,7 @@ def main():
     cols = fig.add_axes([x0, y1 + 0.006, x1 - x0, 0.015], sharex=ax)
     cols.imshow(np.array([[matplotlib.colors.to_rgb(color(k)) for k in frac.columns]]),
                 aspect="auto", interpolation="nearest")
-    cols.set_title("Prediction vs authors' label", fontsize=11, pad=8)
+    cols.set_title("(d) Prediction vs authors' label", fontsize=11, pad=8)
     for a in (rows, cols):
         a.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         for sp in a.spines.values():
@@ -257,6 +288,7 @@ def main():
     rows.set_ylabel("viewmastR prediction (reference label)")
     ax.xaxis.set_tick_params(labelbottom=True)
     cax = fig.add_axes([0.972, 0.55, 0.008, 0.2])
+    fig.suptitle(TITLE, fontsize=16, y=0.985)
     fig.colorbar(im, cax=cax, label="Fraction of column")
     fig.savefig(OUT / "transfer_umap.png", dpi=150)
     plt.close("all")

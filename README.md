@@ -14,49 +14,15 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 - Reads and writes R viewmastR model files. A Python model and an R model trained on the
   same cells agree as closely as two R runs do ([details](docs/r_comparison.md)).
 
-## Example
-
-A model trained on a healthy bone marrow atlas (BoneMarrowMap) with its finest labels
-(`CellType`, 55 types) labels a separate bone marrow dataset. The 55 types include every
-B-lymphoid stage from HSC to mature B cell. The first panel shows the real BoneMarrowMap
-training cells on their stored UMAP. The query is shown on its own published UMAP, coloured by
-its authors' labels (second panel) and by the viewmastR prediction (third panel). The third
-legend lists only types predicted for at least 50 query cells (or 0.5 % of them, if larger).
-Colours are those of `viewmastr.palette`. Like types share a hue across the panels. Each
-reference type is grouped under one query author label (`FAMILY` in the script): the label of
-the same name if there is one, else the label most of its predicted cells carry, else by
-lineage. One type per group keeps that label's colour. The others get a shade
-of it, at least 13.2 (Delta E 1976, CIELAB) from every other colour. Other types with no palette
-colour use `EXTRA`: 31 colours, each at least 20 from every palette colour. Some pairs of palette
-colours are closer; the closest is GMP-Neut and Megakaryocyte Precursor (10.8).
-
-The fourth panel compares the prediction with the query authors' labels, made independently
-with their own names. Each column is one author label; colour is the fraction of its cells
-that get each predicted label. It keeps all 55 reference types, so types the model does not
-call show as empty rows. The two vocabularies differ, so read it as a mapping between them,
-not as an accuracy.
-
-![Reference labels, query author labels, query predictions and prediction against author label](docs/img/transfer_umap.png)
-
-| Item | Value |
-|---|---|
-| Reference | BoneMarrowMap atlas (Zeng et al. 2025), `CellType`, 55 cell types; 3,000 cells per type after `augment_data()` (165,000 cells, 46,491 simulated) |
-| Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
-| Model | default multinomial logistic regression, 5 epochs |
-| Accuracy on held-out real reference cells | 72.9 % over 55 types (35,575 cells, never simulated) |
-| Balancing | Balancing to 3,000 cells per type helps rare types; overall accuracy does not change. In a control (2 seeds, one split), topping up with copies of real cells gave the same overall accuracy (73.0 %) and 1.8 points more mean recall on the 30 topped-up types, so the simulated cells added nothing over copying. |
-
-[`scripts/readme_figures.py`](scripts/readme_figures.py) makes the figure.
-
 ## Installation
 
 py-viewmastR builds a small Rust extension, so it needs a Rust toolchain (1.86 or newer,
 from [rustup](https://rustup.rs)).
 
 ```bash
-uv pip install "git+https://github.com/jacob-greene/py-viewmastR"
+pip install "git+https://github.com/jacob-greene/py-viewmastR"
 # or, from a clone:
-uv pip install .            # add ".[tutorials]" for scanpy and Jupyter
+pip install .               # add ".[tutorials]" for scanpy and Jupyter
 ```
 
 ## Quick start
@@ -78,6 +44,59 @@ vg = [g for g in vm.get_selected_features(query) if g in genes]
 vm.viewmastR(query, ref, "celltype", selected_features=vg, return_probs=True)
 query.obs["viewmastR_pred"]            # predicted cell type
 ```
+
+## How it works
+
+| Step | Function | What it does |
+|---|---|---|
+| Feature selection | `calculate_feature_dispersion()`, `select_features()` | Picks variable genes in each dataset; training uses the genes both share |
+| Class balancing (optional) | `augment_data()` | Simulates cells for small types (and, with `prune=True`, down-samples large ones) to a set number per type |
+| Training | `viewmastR()` | Trains a classifier on the reference (in Rust, with burn) and predicts the query; `return_probs=True` adds class probabilities |
+| Inference | `viewmastR_infer()` | Labels new cells with a saved model |
+
+## Example: refining the cell types of a bone marrow dataset
+
+![ViewmastR: de novo celltyping and refinement based on transfer learning from reference annotations](docs/img/transfer_umap.png)
+
+**ViewmastR: de novo celltyping and refinement based on transfer learning from reference
+annotations.** We trained viewmastR on a healthy bone marrow atlas (BoneMarrowMap; Zeng et al.
+2025) with its finest labels, `CellType` (55 types). We then used the model to label a
+T-cell-depleted bone marrow multiome dataset (RNA only; Persad et al. 2023). The query authors
+gave its 8,627 cells 18 labels. viewmastR gives each cell one of the 55 reference types, so it
+splits several author labels into finer stages (table below).
+(**a**) Reference cells on the atlas UMAP, coloured by `CellType`; only real cells are shown.
+(**b**) Query cells on their published UMAP, coloured by the authors' labels.
+(**c**) The same UMAP, coloured by the viewmastR prediction. The legend lists a type if at least
+10 query cells get it. A mature type must also be one the authors label in the query. Together,
+the two conditions hide types the query should not contain, such as T cells, NK cells, plasma
+cells and CD16 monocytes.
+(**d**) For each author label (column), the fraction of its cells that get each predicted type
+(row). All 55 reference types are rows, so types the model never calls are empty rows. The two
+label sets were made independently, so read this panel as a map between them, not as an accuracy.
+Like cell types share a hue across panels. Mature B cells have their own colour, so that they
+stand apart from the authors' naive B cells.
+
+| Author label | Query cells | Most common viewmastR types (cells) |
+|---|---|---|
+| NaiveB | 976 | Immature B (612), Mature B (343) |
+| proB | 155 | Large Pre-B (108), Pro-B Cycling (26) |
+| Mono | 4,665 | CD14 Mono (1,941), Late ProMono (1,902), Early ProMono (623) |
+| HMP | 121 | LMPP (37), Cycling Progenitor (23), MPP-MyLy (20), Early GMP (19) |
+| HSC | 95 | HSC (43), MPP-MkEry (24), MPP-MyLy (23) |
+
+| Item | Value |
+|---|---|
+| Reference | BoneMarrowMap, `CellType`, 55 types; balanced to 3,000 training cells per type with `augment_data()` (165,000 cells: 118,509 real, 46,491 simulated) |
+| Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, 18 author labels, published UMAP |
+| Genes | 3,878 variable genes shared by reference and query |
+| Model | multinomial logistic regression (the default), 5 epochs |
+| Accuracy on held-out real reference cells | 72.9 % over 55 types (35,575 cells, never trained on or simulated) |
+| Types predicted for at least one query cell | 43 of 55 |
+
+Balancing helps rare types; it does not change overall accuracy. In a control (2 seeds, one
+split), copies of real cells in place of simulated cells gave the same overall accuracy (73.0 %).
+[`scripts/readme_figures.py`](scripts/readme_figures.py) makes the figure and documents its
+colour rules.
 
 ## Documentation
 
@@ -101,6 +120,14 @@ The example above uses these public datasets:
   hematopoiesis reveals genetic and hierarchy-based determinants of aberrant AML
   differentiation. *Blood Cancer Discov* 6, 307-324 (2025). doi:10.1158/2643-3230.BCD-24-0342.
   The annotated h5ad linked from https://github.com/andygxzeng/BoneMarrowMap.
+- Persad S, Choo ZN, Dien C, et al. SEACells infers transcriptional and epigenomic cellular
+  states from single-cell genomics data. *Nat Biotechnol* 41, 1746-1757 (2023). Zenodo
+  record 6383269.
+  The processed object with UMAP is the file the [Mellon](https://github.com/settylab/Mellon)
+  tutorial downloads (Otto DJ, et al. *Nat Methods* 2024).
+
+The tutorials also use these datasets:
+
 - Iacobucci I, Zeng AGX, Gao Q, et al. Multipotent lineage potential in B cell acute
   lymphoblastic leukemia is associated with distinct cellular origins and clinical features.
   *Nat Cancer* 6, 1242-1262 (2025). doi:10.1038/s43018-025-00987-2. Fig 3b atlas cell IDs and
@@ -116,11 +143,6 @@ The example above uses these public datasets:
 - Granja JM, Klemm S, McGinnis LM, et al. Single-cell multiomic analysis identifies
   regulatory programs in mixed-phenotype acute leukemia. *Nat Biotechnol* 37, 1458-1465
   (2019). GEO GSE139369.
-- Persad S, Choo ZN, Dien C, et al. SEACells infers transcriptional and epigenomic cellular
-  states from single-cell genomics data. *Nat Biotechnol* 41, 1746-1757 (2023). Zenodo
-  record 6383269.
-  The processed object with UMAP is the file the [Mellon](https://github.com/settylab/Mellon)
-  tutorial downloads (Otto DJ, et al. *Nat Methods* 2024).
 
 ## Authors
 
