@@ -16,8 +16,9 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 
 ## Example
 
-A model trained on a healthy bone marrow atlas (left, BoneMarrowMap) labels a separate bone
-marrow dataset.
+A model trained on a healthy bone marrow atlas (BoneMarrowMap, plus the healthy fetal and
+CD34+ cells of the Iacobucci et al. 2025 B-cell development atlas) labels a separate bone
+marrow dataset. The left panel shows the BoneMarrowMap cells on their stored UMAP.
 The query is shown on its own published UMAP, coloured by its authors' labels (middle) and by
 the viewmastR prediction (right). Colours are those of `viewmastr.palette`.
 
@@ -31,10 +32,10 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 
 | Item | Value |
 |---|---|
-| Reference | BoneMarrowMap atlas (Zeng et al. 2025), 24 broad cell types, 3,000 cells per type after `augment_data()` (72,000 cells, 6,567 simulated) |
+| Reference | BoneMarrowMap atlas (Zeng et al. 2025), 24 broad cell types, plus 72,356 healthy cells that the Iacobucci et al. 2025 fig 3b atlas adds (counts from the source deposits); 3,000 cells per type after `augment_data()` (72,000 cells, 6,567 simulated) |
 | Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
 | Model | default multinomial logistic regression, 5 epochs |
-| Accuracy on held-out real reference cells | 84.8 % (21,057 cells, never simulated) |
+| Accuracy on held-out real reference cells | 85.1 % (21,356 cells, never simulated) |
 
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
 
@@ -91,6 +92,18 @@ The example above uses these public datasets:
   hematopoiesis reveals genetic and hierarchy-based determinants of aberrant AML
   differentiation. *Blood Cancer Discov* 6, 307-324 (2025). doi:10.1158/2643-3230.BCD-24-0342.
   The annotated h5ad linked from https://github.com/andygxzeng/BoneMarrowMap.
+- Iacobucci I, Zeng AGX, Gao Q, et al. Multipotent lineage potential in B cell acute
+  lymphoblastic leukemia is associated with distinct cellular origins and clinical features.
+  *Nat Cancer* 6, 1242-1262 (2025). doi:10.1038/s43018-025-00987-2. Fig 3b atlas cell IDs and
+  labels from `BDevelopmentMap_SymphonyReference.rds`.
+- Jardine L, Webb S, Goh I, et al. Blood and immune development in human fetal bone marrow
+  and Down syndrome. *Nature* 598, 327-331 (2021). doi:10.1038/s41586-021-03929-x.
+  ArrayExpress E-MTAB-9389; GEO GSE166895.
+- Roy A, Wang G, Iskander D, et al. Transitions in lineage specification and gene regulatory
+  networks in hematopoietic stem/progenitor cells over human development. *Cell Rep* 36,
+  109698 (2021). doi:10.1016/j.celrep.2021.109698. GEO GSE155259.
+- Popescu DM, Botting RA, Stephenson E, et al. Decoding human fetal liver haematopoiesis.
+  *Nature* 574, 365-371 (2019). doi:10.1038/s41586-019-1652-y. ArrayExpress E-MTAB-7407.
 - Granja JM, Klemm S, McGinnis LM, et al. Single-cell multiomic analysis identifies
   regulatory programs in mixed-phenotype acute leukemia. *Nat Biotechnol* 37, 1458-1465
   (2019). GEO GSE139369.

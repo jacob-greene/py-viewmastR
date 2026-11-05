@@ -148,3 +148,36 @@ def test_confusion_matrix_accuracy_only_for_one_vocabulary():
     mixed = vm.confusion_matrix(["a", "x", "y"], ["a", "b", "c"])  # shares only "a"
     assert "accuracy" not in mixed.figure.axes[-1].get_ylabel()
     plt.close("all")
+
+
+def test_uses_counts_only_not_embeddings(data, tmp_path):
+    """Predictions depend on the counts matrix and on nothing in obsm/obsp/varm/uns/layers."""
+    ref, query = data
+
+    def run(q, r, name):
+        res = vm.viewmastR(q, r, "celltype", seed=5, workers=1, max_epochs=3, model_dir=tmp_path / name,
+                           return_type="list", verbose=False)
+        return res.probs.to_numpy()
+
+    rng = np.random.default_rng(0)
+
+    def decorate(a):
+        a = a.copy()
+        a.obsm["X_pca"] = rng.normal(size=(a.n_obs, 10))
+        a.obsm["X_umap"] = rng.normal(size=(a.n_obs, 2))
+        a.obsp["connectivities"] = sp.random(a.n_obs, a.n_obs, density=0.05, format="csr", random_state=1)
+        a.varm["PCs"] = rng.normal(size=(a.n_vars, 10))
+        a.uns["pca"] = {"variance": rng.random(10)}
+        a.layers["counts"] = sp.csr_matrix(rng.poisson(1.0, a.shape).astype(np.float32))  # decoy
+        return a
+
+    base = run(query.copy(), ref, "base")
+    # negative control: random embeddings, graphs and a decoy layer change nothing
+    assert np.array_equal(run(decorate(query), decorate(ref), "decorated"), base)
+    # positive control: shuffling genes within each query cell changes the predictions
+    q = query.copy()
+    x = q.X.toarray()
+    for row in x:
+        rng.shuffle(row)
+    q.X = sp.csr_matrix(x)
+    assert not np.allclose(run(q, ref, "shuffled"), base)

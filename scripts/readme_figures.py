@@ -1,12 +1,13 @@
 """Make the two README figures from the tutorial data.
 
 Reference: BoneMarrowMap healthy bone marrow atlas (Zeng et al. 2025), 24 broad cell types,
+plus the healthy B-cell development atlas cells it lacks (Iacobucci et al. 2025, PMC12377259 fig 3b),
 balanced to 3,000 cells per type with ``augment_data`` (``tutorial_data.bonemarrowmap_augmented``,
 as in tutorials 01 and 04). Accuracy is measured on held-out real reference cells.
 Query: T-cell-depleted bone marrow multiome RNA (Persad et al. 2023), 8,627 cells, loaded
 as is with the authors' labels and UMAP (``tutorial_data.bm_tcelldep``).
 
-Both datasets are shown on their own stored UMAP (real reference cells only); nothing is
+Both datasets are shown on their own stored UMAP (real BoneMarrowMap cells only); nothing is
 re-embedded. Colours come
 from ``viewmastr.palette``.
 
@@ -70,7 +71,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
     label = "CellType_Broad"
-    ref, held = td.bonemarrowmap_augmented(label, norm_number=3000)
+    ref, held = td.bonemarrowmap_augmented(label, norm_number=3000, bdevelopment=True)
     query = td.bm_tcelldep()
     if args.subsample:
         for a in (ref, held, query):
@@ -95,7 +96,7 @@ def main():
     # Figure 1: reference labels, query author labels, query predictions; each on its own UMAP
     pred = query.obs["viewmastR_pred"].astype(str)
     fig, axes = plt.subplots(1, 3, figsize=(15, 7.2))
-    real = ref[~ref.obs["simulated"].to_numpy()]
+    real = ref[~ref.obs["simulated"].to_numpy() & (ref.obs["source"] == "BoneMarrowMap").to_numpy()]
     umap_panel(axes[0], np.asarray(real.obsm["X_umap"]), real.obs[label],
                f"Reference: BoneMarrowMap labels ({real.n_obs:,} real cells)")
     umap_panel(axes[1], np.asarray(query.obsm["X_umap"]), query.obs["celltype"],
