@@ -23,6 +23,7 @@ query authors' label. The prediction legend lists only types called on at least 
 from __future__ import annotations
 
 import argparse
+import colorsys
 from pathlib import Path
 
 import matplotlib
@@ -38,6 +39,7 @@ import viewmastr as vm
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "img"
 SEED = 20261103
+QSIZE = 6  # dot area of the two query UMAPs (the 118,509-cell reference keeps 1.5)
 ORDER = list(vm.palette.COLORS)
 # BoneMarrowMap ``CellType``, by lineage
 FINE_ORDER = [
@@ -68,11 +70,66 @@ EXTRA = [
     "#5a96b4", "#f0d25a", "#870f78", "#ff6969", "#961e0f", "#783c0f", "#878700", "#f0963c",
     "#00872d", "#c3785a", "#4b5a00", "#a569b4", "#4ba596", "#e1c396", "#872d4b",
 ]
+# Fine types grouped under one query author label, so that like types in the reference and the
+# query share a hue: the label of the same population by name if there is one, else the author
+# label that most predicted cells of the type carry (cross-tab of job 11823840), else by lineage
+# (Megakaryocyte, Basophilic Erythroblast: never called). The first type keeps the author label's
+# palette colour; each other type gets the shade of it (hue within 0.04, HLS lightness within 0.3)
+# farthest in CIELAB from every colour already used. Types in no group keep the colour set above.
+FAMILY = {
+    "HSC": ["HSC", "MPP-MkEry"],
+    "HMP": ["MPP-MyLy", "LMPP", "Cycling Progenitor", "MLP"],
+    "CLP": ["CLP", "MLP-II"],
+    "preproB": ["Pre-ProB", "Pro-B VDJ"],
+    "proB": ["Large Pre-B", "Pro-B Cycling"],
+    "preB": ["Small Pre-B"],
+    "NaiveB": ["Mature B", "Immature B"],
+    "MyeloidPre": ["Early GMP", "GMP-Cycle"],
+    "MonoPre": ["Early ProMono", "GMP-Mono"],
+    "Mono": ["CD14 Mono", "Late ProMono", "CD16 Mono"],
+    "cDC": ["cDC2", "Pre-cDC", "cDC1"],
+    "pDC": ["pDC", "Pre-pDC", "Pre-pDC Cycling", "ASDC"],
+    "MEP": ["MEP", "BFU-E"],
+    "Mega": ["Megakaryocyte Precursor", "Megakaryocyte"],
+    "EryPre1": ["Pro-Erythroblast", "CFU-E", "Basophilic Erythroblast"],
+    "EryPre2": ["Polychromatic Erythroblast"],
+    "Ery": ["Orthochromatic Erythroblast"],
+}
+
+
+def lab(hex_) -> np.ndarray:
+    """CIELAB (D65) of a hex colour."""
+    rgb = np.array(matplotlib.colors.to_rgb(hex_))
+    rgb = np.where(rgb > 0.04045, ((rgb + 0.055) / 1.055) ** 2.4, rgb / 12.92)
+    xyz = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722],
+                    [0.0193, 0.1192, 0.9505]]) @ rgb / np.array([0.9505, 1.0, 1.089])
+    f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)
+    return np.array([116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])])
+
+
+def shade(hex_, taken) -> str:
+    """A shade of ``hex_`` (hue within 0.04, lightness within 0.3) farthest (CIELAB) from ``taken``."""
+    h, l, s = colorsys.rgb_to_hls(*matplotlib.colors.to_rgb(hex_))
+    cand = [matplotlib.colors.to_hex(colorsys.hls_to_rgb((h + dh) % 1, q, s * ds))
+            for dh in (-0.04, -0.02, 0, 0.02, 0.04)
+            for q in np.linspace(0.2, 0.88, 18) if abs(q - l) <= 0.3
+            for ds in (0.6, 1.0)]
+    pts = np.array([lab(c) for c in taken])
+    return max(cand, key=lambda c: np.linalg.norm(pts - lab(c), axis=1).min())
+
+
 _extra = iter(EXTRA)
 COLOR = {}
 for _k in FINE_ORDER:
     _a = FINE_ALIASES.get(_k, _k)
     COLOR[_k] = vm.palette.color(_a) if vm.palette.known(_a) else next(_extra)
+_shaded = {t for ts in FAMILY.values() for t in ts[1:]}
+COLOR.update({ts[0]: vm.palette.color(f) for f, ts in FAMILY.items()})
+_taken = list(vm.palette.COLORS.values()) + [COLOR[k] for k in FINE_ORDER if k not in _shaded]
+for _types in FAMILY.values():
+    for _k in _types[1:]:
+        COLOR[_k] = shade(COLOR[_types[0]], _taken)
+        _taken.append(COLOR[_k])
 
 
 def color(label) -> str:
@@ -89,11 +146,11 @@ def lineage_order(labels) -> list[str]:
     return sorted(pd.unique(pd.Series(list(labels), dtype=str)), key=key)
 
 
-def umap_panel(ax, xy, labels, title, legend=None):
-    """UMAP coloured by label; the legend lists ``legend`` (default: every label present)."""
+def umap_panel(ax, xy, labels, title, legend=None, size=1.5):
+    """UMAP coloured by label (dot area ``size``); the legend lists ``legend`` (default: every label)."""
     labels = np.asarray(labels, dtype=str)
     order = np.random.default_rng(0).permutation(len(labels))
-    ax.scatter(xy[order, 0], xy[order, 1], s=1.5, linewidths=0, rasterized=True,
+    ax.scatter(xy[order, 0], xy[order, 1], s=size, linewidths=0, rasterized=True,
                c=[color(x) for x in labels[order]])
     ax.set_title(title, fontsize=11)
     ax.set_xticks([])
@@ -144,7 +201,8 @@ def main():
     pred = query.obs["viewmastR_pred"].astype(str)
     if args.panel:
         fig, ax = plt.subplots(figsize=(6, 9))
-        umap_panel(ax, np.asarray(query.obsm["X_umap"]), pred, "Query: viewmastR predictions")
+        umap_panel(ax, np.asarray(query.obsm["X_umap"]), pred, "Query: viewmastR predictions",
+                   size=QSIZE)
         fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.36)
         fig.savefig(OUT / "test_panel.png", dpi=150)
         return
@@ -171,9 +229,9 @@ def main():
     umap_panel(axes[0], np.asarray(real.obsm["X_umap"]), real.obs[label],
                f"Reference: BoneMarrowMap CellType ({real.n_obs:,} real cells)")
     umap_panel(axes[1], np.asarray(query.obsm["X_umap"]), query.obs["celltype"],
-               f"Query: authors' labels ({query.n_obs:,} cells)")
+               f"Query: authors' labels ({query.n_obs:,} cells)", size=QSIZE)
     umap_panel(axes[2], np.asarray(query.obsm["X_umap"]), pred,
-               "Query: viewmastR predictions", legend=shown)
+               "Query: viewmastR predictions", legend=shown, size=QSIZE)
     x0, x1, y0, y1 = 0.800, 0.955, 0.16, 0.90
     ax = fig.add_axes([x0, y0, x1 - x0, y1 - y0])
     im = ax.imshow(frac.to_numpy(), aspect="auto", cmap="viridis", vmin=0, vmax=1,

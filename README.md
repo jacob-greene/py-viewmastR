@@ -22,10 +22,13 @@ B-lymphoid stage from HSC to mature B cell. The first panel shows the real BoneM
 training cells on their stored UMAP. The query is shown on its own published UMAP, coloured by
 its authors' labels (second panel) and by the viewmastR prediction (third panel). The third
 legend lists only types predicted for at least 50 query cells (or 0.5 % of them, if larger).
-Colours are those of `viewmastr.palette`. Fine types with no palette colour get one extra
-palette: 31 colours (`EXTRA` in the script). Each new colour is at least 20 (Delta E 1976,
-CIELAB) from every other colour. Some pairs of palette colours are closer; the closest is
-GMP-Neut and Megakaryocyte Precursor (10.8).
+Colours are those of `viewmastr.palette`. Like types share a hue across the panels. Each
+reference type is grouped under one query author label (`FAMILY` in the script): the label of
+the same name if there is one, else the label most of its predicted cells carry, else by
+lineage. One type per group keeps that label's colour. The others get a shade
+of it, at least 13.2 (Delta E 1976, CIELAB) from every other colour. Other types with no palette
+colour use `EXTRA`: 31 colours, each at least 20 from every palette colour. Some pairs of palette
+colours are closer; the closest is GMP-Neut and Megakaryocyte Precursor (10.8).
 
 The fourth panel compares the prediction with the query authors' labels, made independently
 with their own names. Each column is one author label; colour is the fraction of its cells
