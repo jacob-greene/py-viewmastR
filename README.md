@@ -18,21 +18,22 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 
 A model trained on a healthy bone marrow atlas (BoneMarrowMap) with its finest labels
 (`CellType`, 55 types) labels a separate bone marrow dataset. The 55 types include every
-B-lymphoid stage from HSC to mature B cell. The left panel shows the real BoneMarrowMap
+B-lymphoid stage from HSC to mature B cell. The first panel shows the real BoneMarrowMap
 training cells on their stored UMAP. The query is shown on its own published UMAP, coloured by
-its authors' labels (middle) and by the viewmastR prediction (right). Colours are those of
-`viewmastr.palette`. Fine types with no palette colour get one extra palette: 31 colours
-(`EXTRA` in the script). Each new colour is at least 20 (Delta E 1976, CIELAB) from every other
-colour. Some pairs of palette colours are closer; the closest is GMP-Neut and Megakaryocyte
-Precursor (10.8).
+its authors' labels (second panel) and by the viewmastR prediction (third panel). The third
+legend lists only types predicted for at least 50 query cells (or 0.5 % of them, if larger).
+Colours are those of `viewmastr.palette`. Fine types with no palette colour get one extra
+palette: 31 colours (`EXTRA` in the script). Each new colour is at least 20 (Delta E 1976,
+CIELAB) from every other colour. Some pairs of palette colours are closer; the closest is
+GMP-Neut and Megakaryocyte Precursor (10.8).
 
-![Reference labels, query author labels and query predictions](docs/img/transfer_umap.png)
+The fourth panel compares the prediction with the query authors' labels, made independently
+with their own names. Each column is one author label; colour is the fraction of its cells
+that get each predicted label. It keeps all 55 reference types, so types the model does not
+call show as empty rows. The two vocabularies differ, so read it as a mapping between them,
+not as an accuracy.
 
-The query authors labelled these cells independently, with their own names. Each column is
-one author label; colour is the fraction of its cells that get each predicted label. The two
-vocabularies differ, so read it as a mapping between them, not as an accuracy.
-
-![Predicted label against the query authors' label](docs/img/confusion_matrix.png)
+![Reference labels, query author labels, query predictions and prediction against author label](docs/img/transfer_umap.png)
 
 | Item | Value |
 |---|---|
@@ -42,7 +43,7 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 | Accuracy on held-out real reference cells | 72.9 % over 55 types (35,575 cells, never simulated) |
 | Balancing | Balancing to 3,000 cells per type helps rare types; overall accuracy does not change. In a control (2 seeds, one split), topping up with copies of real cells gave the same overall accuracy (73.0 %) and 1.8 points more mean recall on the 30 topped-up types, so the simulated cells added nothing over copying. |
 
-[`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
+[`scripts/readme_figures.py`](scripts/readme_figures.py) makes the figure.
 
 ## Installation
 

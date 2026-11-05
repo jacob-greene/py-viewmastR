@@ -1,4 +1,4 @@
-"""Make the two README figures from the tutorial data.
+"""Make the README figure from the tutorial data.
 
 Reference: BoneMarrowMap healthy bone marrow atlas (Zeng et al. 2025) with its finest labels,
 ``CellType`` (55 types), balanced to 3,000 cells per type with ``augment_data``
@@ -11,7 +11,9 @@ Both datasets are shown on their own stored UMAP (real BoneMarrowMap cells only)
 re-embedded. Colours come from ``viewmastr.palette``; a fine type with no palette colour of its
 own gets the next colour of ``EXTRA`` (31 colours far from the palette in CIELAB).
 
-Writes ``docs/img/transfer_umap.png`` and ``docs/img/confusion_matrix.png``.
+Writes ``docs/img/transfer_umap.png``: three UMAPs and a heatmap of the predicted label against the
+query authors' label. The prediction legend lists only types called on at least 50 query cells
+(or 0.5 % of them, if larger); the heatmap keeps all 55 types, so uncalled types show as empty rows.
 
     PYTHONPATH=tutorials python scripts/readme_figures.py [--subsample N]
 
@@ -30,7 +32,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import seaborn as sns
 
 import tutorial_data as td
 import viewmastr as vm
@@ -88,7 +89,8 @@ def lineage_order(labels) -> list[str]:
     return sorted(pd.unique(pd.Series(list(labels), dtype=str)), key=key)
 
 
-def umap_panel(ax, xy, labels, title):
+def umap_panel(ax, xy, labels, title, legend=None):
+    """UMAP coloured by label; the legend lists ``legend`` (default: every label present)."""
     labels = np.asarray(labels, dtype=str)
     order = np.random.default_rng(0).permutation(len(labels))
     ax.scatter(xy[order, 0], xy[order, 1], s=1.5, linewidths=0, rasterized=True,
@@ -100,7 +102,7 @@ def umap_panel(ax, xy, labels, title):
     for s in ax.spines.values():
         s.set_visible(False)
     handles = [plt.Line2D([], [], ls="", marker="o", ms=5, color=color(k), label=k)
-               for k in lineage_order(labels)]
+               for k in (lineage_order(labels) if legend is None else legend)]
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=3,
               frameon=False, fontsize=7, handletextpad=0.2, columnspacing=0.8)
 
@@ -138,7 +140,7 @@ def main():
     acc = 100 * float((held.obs["pred"].astype(str) == held.obs[label].astype(str)).mean())
     print(f"accuracy on {held.n_obs:,} held-out real reference cells {acc:.1f}%")
 
-    # Figure 1: reference labels, query author labels, query predictions; each on its own UMAP
+    # Each dataset on its own stored UMAP
     pred = query.obs["viewmastR_pred"].astype(str)
     if args.panel:
         fig, ax = plt.subplots(figsize=(6, 9))
@@ -146,33 +148,59 @@ def main():
         fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.36)
         fig.savefig(OUT / "test_panel.png", dpi=150)
         return
+    # Column 3 legend: only types called on at least CUT query cells; the heatmap keeps all types
+    n_called = pred.value_counts()
+    cut = max(50, int(np.ceil(0.005 * query.n_obs)))
+    shown = [k for k in FINE_ORDER if n_called.get(k, 0) >= cut]
+    dropped = pd.Series({k: int(n_called.get(k, 0)) for k in FINE_ORDER if k not in shown})
+    print(f"column 3 legend cut {cut} cells; dropped {len(dropped)} types")
+    print(dropped.to_string())
+
+    # Predicted reference label vs the query authors' label, fraction of each column
+    author = query.obs["celltype"].astype(str)
+    tab = pd.crosstab(pred, author)
+    tab = tab.reindex(index=FINE_ORDER, fill_value=0).loc[:, lineage_order(tab.columns)]
+    frac = tab.div(tab.sum(axis=0), axis=1)
+    print(tab.to_string())
+
+    # One figure: reference labels, query author labels, query predictions, heatmap
     real = ref[~ref.obs["simulated"].to_numpy()]
-    fig, axes = plt.subplots(1, 3, figsize=(16, 9))
+    fig = plt.figure(figsize=(26, 10))
+    gs = fig.add_gridspec(1, 3, left=0.005, right=0.70, top=0.94, bottom=0.36, wspace=0.05)
+    axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
     umap_panel(axes[0], np.asarray(real.obsm["X_umap"]), real.obs[label],
                f"Reference: BoneMarrowMap CellType ({real.n_obs:,} real cells)")
     umap_panel(axes[1], np.asarray(query.obsm["X_umap"]), query.obs["celltype"],
                f"Query: authors' labels ({query.n_obs:,} cells)")
     umap_panel(axes[2], np.asarray(query.obsm["X_umap"]), pred,
-               "Query: viewmastR predictions")
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.36, wspace=0.05)
+               "Query: viewmastR predictions", legend=shown)
+    x0, x1, y0, y1 = 0.800, 0.955, 0.16, 0.90
+    ax = fig.add_axes([x0, y0, x1 - x0, y1 - y0])
+    im = ax.imshow(frac.to_numpy(), aspect="auto", cmap="viridis", vmin=0, vmax=1,
+                   interpolation="nearest")
+    ax.set_xticks(range(frac.shape[1]), frac.columns, rotation=90)
+    ax.set_yticks(range(frac.shape[0]), frac.index)
+    ax.tick_params(labelsize=7, length=0)
+    ax.set_xlabel(f"Query authors' label ({query.n_obs:,} cells)")
+    rows = fig.add_axes([x0 - 0.008, y0, 0.006, y1 - y0], sharey=ax)
+    rows.imshow(np.array([[matplotlib.colors.to_rgb(color(k))] for k in frac.index]),
+                aspect="auto", interpolation="nearest")
+    cols = fig.add_axes([x0, y1 + 0.006, x1 - x0, 0.015], sharex=ax)
+    cols.imshow(np.array([[matplotlib.colors.to_rgb(color(k)) for k in frac.columns]]),
+                aspect="auto", interpolation="nearest")
+    cols.set_title("Prediction vs authors' label", fontsize=11, pad=8)
+    for a in (rows, cols):
+        a.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+        for sp in a.spines.values():
+            sp.set_visible(False)
+    # Row names sit left of the row colour strip
+    ax.tick_params(labelleft=False)
+    rows.tick_params(labelleft=True, labelsize=7, length=0)
+    rows.set_ylabel("viewmastR prediction (reference label)")
+    ax.xaxis.set_tick_params(labelbottom=True)
+    cax = fig.add_axes([0.972, 0.55, 0.008, 0.2])
+    fig.colorbar(im, cax=cax, label="Fraction of column")
     fig.savefig(OUT / "transfer_umap.png", dpi=150)
-    plt.close(fig)
-
-    # Figure 2: predicted reference label vs the query authors' label, fraction of each column
-    author = query.obs["celltype"].astype(str)
-    tab = pd.crosstab(pred, author)
-    tab = tab.loc[lineage_order(tab.index), lineage_order(tab.columns)]
-    frac = tab.div(tab.sum(axis=0), axis=1)
-    print(tab.to_string())
-    g = sns.clustermap(frac, row_cluster=False, col_cluster=False, cmap="viridis", vmin=0, vmax=1,
-                       row_colors=pd.Series({k: color(k) for k in frac.index}, name=""),
-                       col_colors=pd.Series({k: color(k) for k in frac.columns}, name=""),
-                       figsize=(9, 12), dendrogram_ratio=0.04, colors_ratio=0.025, linewidths=0,
-                       cbar_pos=(1.0, 0.35, 0.025, 0.2), cbar_kws={"label": "Fraction of column"})
-    g.ax_heatmap.set(xlabel=f"Query authors' label ({query.n_obs:,} cells)",
-                     ylabel="viewmastR prediction (reference label)")
-    g.ax_heatmap.tick_params(labelsize=8, length=0)
-    g.savefig(OUT / "confusion_matrix.png", dpi=150, bbox_inches="tight")
     plt.close("all")
     print("wrote", *sorted(OUT.glob("*.png")))
 
