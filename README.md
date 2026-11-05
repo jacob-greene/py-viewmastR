@@ -22,7 +22,9 @@ B-lymphoid stage from HSC to mature B cell. The left panel shows the real BoneMa
 training cells on their stored UMAP. The query is shown on its own published UMAP, coloured by
 its authors' labels (middle) and by the viewmastR prediction (right). Colours are those of
 `viewmastr.palette`. Fine types with no palette colour get one extra palette: 31 colours
-far (CIELAB) from the palette and from each other (`EXTRA` in the script).
+(`EXTRA` in the script). Each new colour is at least 20 (Delta E 1976, CIELAB) from every other
+colour. Some pairs of palette colours are closer; the closest is GMP-Neut and Megakaryocyte
+Precursor (10.8).
 
 ![Reference labels, query author labels and query predictions](docs/img/transfer_umap.png)
 
@@ -38,6 +40,7 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 | Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
 | Model | default multinomial logistic regression, 5 epochs |
 | Accuracy on held-out real reference cells | 72.9 % over 55 types (35,575 cells, never simulated) |
+| Balancing | Balancing to 3,000 cells per type helps rare types; overall accuracy does not change. In a control (2 seeds, one split), topping up with copies of real cells gave the same overall accuracy (73.0 %) and 1.8 points more mean recall on the 30 topped-up types, so the simulated cells added nothing over copying. |
 
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
 
