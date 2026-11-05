@@ -16,11 +16,13 @@ them for a query dataset. Models train in viewmastR's own Rust code (the
 
 ## Example
 
-A model trained on a healthy bone marrow atlas (BoneMarrowMap, plus the healthy fetal and
-CD34+ cells of the Iacobucci et al. 2025 B-cell development atlas) labels a separate bone
-marrow dataset. The left panel shows the BoneMarrowMap cells on their stored UMAP.
-The query is shown on its own published UMAP, coloured by its authors' labels (middle) and by
-the viewmastR prediction (right). Colours are those of `viewmastr.palette`.
+A model trained on a healthy bone marrow atlas (BoneMarrowMap) with its finest labels
+(`CellType`, 55 types) labels a separate bone marrow dataset. The 55 types include every
+B-lymphoid stage from HSC to mature B cell. The left panel shows the real BoneMarrowMap
+training cells on their stored UMAP. The query is shown on its own published UMAP, coloured by
+its authors' labels (middle) and by the viewmastR prediction (right). Colours are those of
+`viewmastr.palette`. Fine types with no palette colour get one extra palette: 31 colours
+far (CIELAB) from the palette and from each other (`EXTRA` in the script).
 
 ![Reference labels, query author labels and query predictions](docs/img/transfer_umap.png)
 
@@ -32,10 +34,10 @@ vocabularies differ, so read it as a mapping between them, not as an accuracy.
 
 | Item | Value |
 |---|---|
-| Reference | BoneMarrowMap atlas (Zeng et al. 2025), 24 broad cell types, plus 72,356 healthy cells that the Iacobucci et al. 2025 fig 3b atlas adds (counts from the source deposits); 3,000 cells per type after `augment_data()` (72,000 cells, 6,567 simulated) |
+| Reference | BoneMarrowMap atlas (Zeng et al. 2025), `CellType`, 55 cell types; 3,000 cells per type after `augment_data()` (165,000 cells, 46,491 simulated) |
 | Query | Persad et al. 2023 T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
 | Model | default multinomial logistic regression, 5 epochs |
-| Accuracy on held-out real reference cells | 85.1 % (21,356 cells, never simulated) |
+| Accuracy on held-out real reference cells | 72.9 % over 55 types (35,575 cells, never simulated) |
 
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes both figures.
 
