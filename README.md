@@ -76,14 +76,6 @@ label sets were made independently, so read this panel as a map between them, no
 Like cell types share a hue across panels. Mature B cells have their own colour, so that they
 stand apart from the authors' naive B cells.
 
-| Author label | Query cells | Most common viewmastR types (cells) |
-|---|---|---|
-| NaiveB | 976 | Immature B (612), Mature B (343) |
-| proB | 155 | Large Pre-B (108), Pro-B Cycling (26) |
-| Mono | 4,665 | CD14 Mono (1,941), Late ProMono (1,902), Early ProMono (623) |
-| HMP | 121 | LMPP (37), Cycling Progenitor (23), MPP-MyLy (20), Early GMP (19) |
-| HSC | 95 | HSC (43), MPP-MkEry (24), MPP-MyLy (23) |
-
 | Item | Value |
 |---|---|
 | Reference | BoneMarrowMap, `CellType`, 55 types; balanced to 3,000 training cells per type with `augment_data()` (165,000 cells: 118,509 real, 46,491 simulated) |
