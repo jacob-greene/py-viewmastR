@@ -18,6 +18,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Tutorials 01 and 04 use the README figure's reference: BoneMarrowMap with its 55 fine
+  `CellType` labels, without the added B-cell development cells. Tutorial 01 trains once with
+  a fixed seed and reproduces the README figure. `tutorials/celltype_colors.py` gives the 55
+  types the README figure's colours.
+- README: shorter, `uv pip` install, a workflow flowchart (`scripts/workflow_svg.py`) that
+  points to the tutorials, a shorter figure legend. Dataset citations moved to the tutorials
+  README. The figure adds the gene dispersion plots and the shared gene count, with larger
+  text; `readme_figures.py --replot` redraws it without training.
+
 - Tutorials 01 and 04 and the README figures use the BoneMarrowMap atlas (Zeng et al. 2025,
   broad labels) as the reference for the T-cell-depleted query, balanced with
   `augment_data()` to 3,000 cells per type. New loaders `tutorial_data.bonemarrowmap_reference()`,

@@ -5,10 +5,10 @@ Each notebook follows one R article; the table maps them.
 
 | R article | Python notebook | Data |
 |---|---|---|
-| [How to use viewmastR](https://furlan-lab.github.io/viewmastR/articles/HowTo.html) | [01_how_to](01_how_to.ipynb) | BoneMarrowMap atlas, augmented; T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP |
+| [How to use viewmastR](https://furlan-lab.github.io/viewmastR/articles/HowTo.html) | [01_how_to](01_how_to.ipynb) | BoneMarrowMap atlas, 55 cell types, augmented; T-cell-depleted bone marrow multiome RNA, 8,627 cells, stored UMAP (makes the README figure) |
 | [A deeper look at viewmastR](https://furlan-lab.github.io/viewmastR/articles/InDepth.html) | [02_in_depth](02_in_depth.ipynb) | Greenleaf reference; CD34+ bone marrow multiome RNA |
 | [Bulk dataset as a reference](https://furlan-lab.github.io/viewmastR/articles/BulkReference.html) | [03_bulk_reference](03_bulk_reference.ipynb) | Corces bulk RNA-seq; Greenleaf atlas; AML bone marrow at diagnosis, 16 patients (van Galen et al. 2019) |
-| [Augment data](https://furlan-lab.github.io/viewmastR/articles/Augment.html) | [04_augment](04_augment.ipynb) | BoneMarrowMap atlas (broad labels); T-cell-depleted bone marrow, 8,627 cells, stored UMAP |
+| [Augment data](https://furlan-lab.github.io/viewmastR/articles/Augment.html) | [04_augment](04_augment.ipynb) | BoneMarrowMap atlas, 55 cell types; T-cell-depleted bone marrow, 8,627 cells, stored UMAP |
 | [Saved models](https://furlan-lab.github.io/viewmastR/articles/SavedModel.html) | [05_saved_model](05_saved_model.ipynb) | Greenleaf reference; CD34+ bone marrow |
 | [Extra functions](https://furlan-lab.github.io/viewmastR/articles/Extras.html) | [06_extras](06_extras.ipynb) | CD34+ bone marrow |
 | [Large query objects](https://furlan-lab.github.io/viewmastR/articles/BigQuery.html) | [07_big_query](07_big_query.ipynb) | Greenleaf reference; BoneMarrowMap atlas as the large query, 263,159 cells, opened on disk |

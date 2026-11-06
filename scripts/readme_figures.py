@@ -8,25 +8,27 @@ Query: T-cell-depleted bone marrow multiome RNA (Persad et al. 2023), 8,627 cell
 as is with the authors' labels and UMAP (``tutorial_data.bm_tcelldep``).
 
 Both datasets are shown on their own stored UMAP (real BoneMarrowMap cells only); nothing is
-re-embedded. Colours come from ``viewmastr.palette``; a fine type with no palette colour of its
-own gets the next colour of ``EXTRA`` (31 colours far from the palette in CIELAB).
+re-embedded. Colours come from ``tutorials/celltype_colors.py``, which the tutorials share.
 
-Writes ``docs/img/transfer_umap.png`` and an editable vector copy, ``docs/img/transfer_umap.pdf``: three UMAPs and a heatmap of the predicted label against the
-query authors' label. The prediction legend lists types called on at least 10 query cells; a mature type is
+Writes ``docs/img/transfer_umap.png`` and an editable vector copy, ``docs/img/transfer_umap.pdf``:
+three UMAPs, a heatmap of the predicted label against the query authors' label, and under the
+first two UMAPs the gene dispersion plot of each dataset with the number of shared genes.
+The prediction legend lists types called on at least 10 query cells; a mature type is
 listed only if the query authors label that population too (``MATURE``). The heatmap keeps all 55
 types, so uncalled types show as empty rows.
 
-    PYTHONPATH=tutorials python scripts/readme_figures.py [--subsample N]
+    PYTHONPATH=tutorials python scripts/readme_figures.py [--subsample N] [--replot]
 
-``--subsample N`` keeps N cells of each dataset, for a quick test run.
+``--subsample N`` keeps N cells of each dataset, for a quick test run. Each run caches what the
+figure draws in ``cache_dir``; ``--replot`` redraws from that cache without training.
 """
 
 from __future__ import annotations
 
 import argparse
-import colorsys
 from pathlib import Path
 
+import anndata as ad
 import matplotlib
 
 matplotlib.use("Agg")
@@ -36,6 +38,7 @@ import pandas as pd
 import scanpy as sc
 
 import tutorial_data as td
+from celltype_colors import FINE_ORDER, color
 import viewmastr as vm
 
 # Editable text in the PDF (TrueType, not outlines); Helvetica or Arial if installed, else Liberation Sans
@@ -48,101 +51,6 @@ TITLE = ("ViewmastR: de novo celltyping and refinement based on transfer learnin
          "annotations")
 QSIZE = 6  # dot area of the two query UMAPs (the 118,509-cell reference keeps 1.5)
 ORDER = list(vm.palette.COLORS)
-# BoneMarrowMap ``CellType``, by lineage
-FINE_ORDER = [
-    "HSC", "MPP-MyLy", "MPP-MkEry", "LMPP", "Cycling Progenitor", "MLP", "MLP-II", "CLP", "Pre-ProB",
-    "Pro-B VDJ", "Pro-B Cycling", "Large Pre-B", "Small Pre-B", "Immature B", "Mature B", "Plasma Cell",
-    "Early GMP", "GMP-Cycle", "GMP-Neut", "GMP-Mono", "Early ProMono", "Late ProMono", "CD14 Mono",
-    "CD16 Mono", "Pre-cDC", "cDC1", "cDC2", "ASDC", "Pre-pDC", "Pre-pDC Cycling", "pDC",
-    "EoBasoMast Precursor", "MEP", "Megakaryocyte Precursor", "Megakaryocyte", "BFU-E", "CFU-E",
-    "Pro-Erythroblast", "Basophilic Erythroblast", "Polychromatic Erythroblast",
-    "Orthochromatic Erythroblast", "CD4 Naive", "CD4 Central Memory", "CD4 Effector Memory",
-    "CD4 Regulatory", "CD8 Naive", "CD8 Central Memory", "CD8 Effector Memory 1",
-    "CD8 Effector Memory 2", "CD8 Tissue Resident Memory", "T Proliferating", "NK CD56high", "NK",
-    "NK Proliferating", "Stromal",
-]
-# Fine types that take the palette colour of the same population (one fine type per colour)
-FINE_ALIASES = {
-    "MPP-MyLy": "HMP", "Pre-ProB": "preproB", "Pro-B VDJ": "proB", "Large Pre-B": "preB",
-    "Mature B": "NaiveB", "Plasma Cell": "Plasma", "Early ProMono": "MonoPre", "CD14 Mono": "Mono",
-    "CD16 Mono": "CD16.Mono", "cDC2": "cDC", "GMP-Neut": "GMP.Neut", "CD4 Naive": "CD4.N",
-    "CD8 Naive": "CD8.N",
-}
-# Colours for fine types with no palette colour, in order of use. Picked by greedy farthest-point
-# sampling in CIELAB (lightness 30-85, chroma < 65), each at least 20 (Delta E 1976) from every
-# palette colour and from each other.
-EXTRA = [
-    "#b496ff", "#a54b00", "#a5005a", "#783ca5", "#00f0b4", "#1e69d2", "#ff6996", "#ff875a",
-    "#c3961e", "#3cc3ff", "#69a5ff", "#69874b", "#96e1c3", "#b47896", "#f0b4ff", "#2d4b69",
-    "#5a96b4", "#f0d25a", "#870f78", "#ff6969", "#961e0f", "#783c0f", "#878700", "#f0963c",
-    "#00872d", "#c3785a", "#4b5a00", "#a569b4", "#4ba596", "#e1c396", "#872d4b",
-]
-# Fine types grouped under one query author label, so that like types in the reference and the
-# query share a hue: the label of the same population by name if there is one, else the author
-# label that most predicted cells of the type carry (the panel d cross-tab), else by lineage
-# (Megakaryocyte, Basophilic Erythroblast: never called). The first type keeps the author label's
-# palette colour; each other type gets the shade of it (hue within 0.04, HLS lightness within 0.3)
-# farthest in CIELAB from every colour already used. Types in no group keep the colour set above.
-FAMILY = {
-    "HSC": ["HSC", "MPP-MkEry"],
-    "HMP": ["MPP-MyLy", "LMPP", "Cycling Progenitor", "MLP"],
-    "CLP": ["CLP", "MLP-II"],
-    "preproB": ["Pre-ProB", "Pro-B VDJ"],
-    "proB": ["Large Pre-B", "Pro-B Cycling"],
-    "preB": ["Small Pre-B"],
-    "NaiveB": ["Mature B", "Immature B"],
-    "MyeloidPre": ["Early GMP", "GMP-Cycle"],
-    "MonoPre": ["Early ProMono", "GMP-Mono"],
-    "Mono": ["CD14 Mono", "Late ProMono", "CD16 Mono"],
-    "cDC": ["cDC2", "Pre-cDC", "cDC1"],
-    "pDC": ["pDC", "Pre-pDC", "Pre-pDC Cycling", "ASDC"],
-    "MEP": ["MEP", "BFU-E"],
-    "Mega": ["Megakaryocyte Precursor", "Megakaryocyte"],
-    "EryPre1": ["Pro-Erythroblast", "CFU-E", "Basophilic Erythroblast"],
-    "EryPre2": ["Polychromatic Erythroblast"],
-    "Ery": ["Orthochromatic Erythroblast"],
-}
-
-
-def lab(hex_) -> np.ndarray:
-    """CIELAB (D65) of a hex colour."""
-    rgb = np.array(matplotlib.colors.to_rgb(hex_))
-    rgb = np.where(rgb > 0.04045, ((rgb + 0.055) / 1.055) ** 2.4, rgb / 12.92)
-    xyz = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722],
-                    [0.0193, 0.1192, 0.9505]]) @ rgb / np.array([0.9505, 1.0, 1.089])
-    f = np.where(xyz > 0.008856, np.cbrt(xyz), 7.787 * xyz + 16 / 116)
-    return np.array([116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])])
-
-
-def shade(hex_, taken) -> str:
-    """A shade of ``hex_`` (hue within 0.04, lightness within 0.3) farthest (CIELAB) from ``taken``."""
-    h, l, s = colorsys.rgb_to_hls(*matplotlib.colors.to_rgb(hex_))
-    cand = [matplotlib.colors.to_hex(colorsys.hls_to_rgb((h + dh) % 1, q, s * ds))
-            for dh in (-0.04, -0.02, 0, 0.02, 0.04)
-            for q in np.linspace(0.2, 0.88, 18) if abs(q - l) <= 0.3
-            for ds in (0.6, 1.0)]
-    pts = np.array([lab(c) for c in taken])
-    return max(cand, key=lambda c: np.linalg.norm(pts - lab(c), axis=1).min())
-
-
-_extra = iter(EXTRA)
-COLOR = {}
-for _k in FINE_ORDER:
-    _a = FINE_ALIASES.get(_k, _k)
-    COLOR[_k] = vm.palette.color(_a) if vm.palette.known(_a) else next(_extra)
-_shaded = {t for ts in FAMILY.values() for t in ts[1:]}
-COLOR.update({ts[0]: vm.palette.color(f) for f, ts in FAMILY.items()})
-_taken = list(vm.palette.COLORS.values()) + [COLOR[k] for k in FINE_ORDER if k not in _shaded]
-for _types in FAMILY.values():
-    for _k in _types[1:]:
-        COLOR[_k] = shade(COLOR[_types[0]], _taken)
-        _taken.append(COLOR[_k])
-# Types that must not share a hue with the author label of their group (Mature B against the query
-# authors' NaiveB). Mature B: of the sRGB colours (step 5, CIELAB lightness 30-80) at least 25
-# (Delta E 1976) from every other colour in the figure, the one farthest (CIEDE2000) from them all.
-DISTINCT = {"Mature B": "#0000ff"}
-COLOR.update(DISTINCT)
-_taken.extend(DISTINCT.values())
 # Mature reference types, by the palette name of the population. The column 3 legend shows a mature
 # type only if the query authors label that population too; developing types need no such match.
 MATURE = {
@@ -158,11 +66,6 @@ MATURE = {
 MIN_CELLS = 10  # column 3 legend: types predicted for at least this many query cells
 
 
-def color(label) -> str:
-    """Fine BoneMarrowMap types first, then the palette (query author labels)."""
-    return COLOR.get(str(label)) or vm.palette.color(label)
-
-
 def lineage_order(labels) -> list[str]:
     """Labels in palette order (roughly by lineage); unknown labels last."""
     if set(map(str, labels)) <= set(FINE_ORDER):
@@ -172,32 +75,49 @@ def lineage_order(labels) -> list[str]:
     return sorted(pd.unique(pd.Series(list(labels), dtype=str)), key=key)
 
 
+# Font sizes (points). The figure is 27 inches wide and shown about 900 pixels wide in the
+# README, so 1 point is about half a pixel there: panel titles need 24 points or more.
+FS_SUPTITLE, FS_TITLE, FS_LABEL, FS_TICK, FS_LEGEND = 34, 26, 18, 13, 11
+FIG_W, FIG_H = 27, 17.5  # inches
+
+
+def box(fig, left, bottom, width, height):
+    """Axes at a position given in inches from the lower left corner."""
+    return fig.add_axes([left / FIG_W, bottom / FIG_H, width / FIG_W, height / FIG_H])
+
+
 def umap_panel(ax, xy, labels, title, legend=None, size=1.5):
     """UMAP coloured by label (dot area ``size``); the legend lists ``legend`` (default: every label)."""
     labels = np.asarray(labels, dtype=str)
     order = np.random.default_rng(0).permutation(len(labels))
     ax.scatter(xy[order, 0], xy[order, 1], s=size, linewidths=0, rasterized=True,
                c=[color(x) for x in labels[order]])
-    ax.set_title(title, fontsize=11)
+    ax.set_title(title, fontsize=FS_TITLE)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_aspect("equal", adjustable="datalim")
     for s in ax.spines.values():
         s.set_visible(False)
-    handles = [plt.Line2D([], [], ls="", marker="o", ms=5, color=color(k), label=k)
+    handles = [plt.Line2D([], [], ls="", marker="o", ms=7, color=color(k), label=k)
                for k in (lineage_order(labels) if legend is None else legend)]
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=3,
-              frameon=False, fontsize=7, handletextpad=0.2, columnspacing=0.8)
+    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.01), ncol=3,
+              frameon=False, fontsize=FS_LEGEND, handletextpad=0.2, columnspacing=0.8)
 
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--subsample", type=int, default=0)
-    p.add_argument("--no-augment", action="store_true", help="train on real reference cells only")
-    p.add_argument("--panel", action="store_true", help="test: draw only the prediction panel")
-    args = p.parse_args()
-    OUT.mkdir(parents=True, exist_ok=True)
+def dispersion_panel(ax, var, title):
+    """Log dispersion against log mean of every gene; selected genes in red (``plot_feature_dispersion``)."""
+    vm.plot_feature_dispersion(ad.AnnData(var=var), ax=ax, size=2)
+    ax.set_title(title, fontsize=FS_TITLE)
+    ax.xaxis.label.set_size(FS_LABEL)
+    ax.yaxis.label.set_size(FS_LABEL)
+    ax.tick_params(labelsize=FS_TICK)
+    ax.legend(frameon=False, markerscale=6, fontsize=FS_TICK, loc="upper right")
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
 
+
+def compute(args) -> dict:
+    """Train, predict and score; return what the figure draws."""
     label = "CellType"
     ref, held = td.bonemarrowmap_augmented(label, norm_number=3000)
     if args.no_augment:
@@ -215,6 +135,8 @@ def main():
     vgr = set(vm.get_selected_features(ref))
     vg = [g for g in vm.get_selected_features(query) if g in vgr]
     print(len(vg), "shared variable genes")
+    cols = ["log_mean", "log_dispersion", "dispersion_fit", "selected_feature"]
+    disp = {"reference": ref.var[cols].copy(), "query": query.var[cols].copy()}
 
     res = vm.viewmastR(query, ref, label, selected_features=vg, seed=SEED, workers=1,
                        return_type="list")
@@ -222,13 +144,38 @@ def main():
     vm.viewmastR_infer(held, res.model_dir, query_celldata_col="pred")
     acc = 100 * float((held.obs["pred"].astype(str) == held.obs[label].astype(str)).mean())
     print(f"accuracy on {held.n_obs:,} held-out real reference cells {acc:.1f}%")
+    real = ref[~ref.obs["simulated"].to_numpy()]
+    return {"ref_xy": np.asarray(real.obsm["X_umap"]), "ref_label": real.obs[label].astype(str).to_numpy(),
+            "query_xy": np.asarray(query.obsm["X_umap"]),
+            "author": query.obs["celltype"].astype(str).to_numpy(),
+            "pred": query.obs["viewmastR_pred"].astype(str).to_numpy(),
+            "dispersion": disp, "n_genes": len(vg), "accuracy": acc}
 
-    # Each dataset on its own stored UMAP
-    pred = query.obs["viewmastR_pred"].astype(str)
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--subsample", type=int, default=0)
+    p.add_argument("--no-augment", action="store_true", help="train on real reference cells only")
+    p.add_argument("--panel", action="store_true", help="test: draw only the prediction panel")
+    p.add_argument("--replot", action="store_true",
+                   help="redraw from the results the last run cached (no training)")
+    args = p.parse_args()
+    OUT.mkdir(parents=True, exist_ok=True)
+    cache = Path(td.config()["cache_dir"]) / (
+        "readme_figure" + (f"_sub{args.subsample}" if args.subsample else "")
+        + ("_noaug" if args.no_augment else "") + ".pkl")
+    if args.replot:
+        d = pd.read_pickle(cache)
+    else:
+        d = compute(args)
+        pd.to_pickle(d, cache)
+    print(f"{d['n_genes']} shared variable genes; accuracy {d['accuracy']:.1f}%")
+
+    pred = pd.Series(d["pred"])
     # Column 3 legend: types called on at least MIN_CELLS query cells; a mature type also needs its
     # population among the query authors' labels. The heatmap keeps all types.
     n_called = pred.value_counts()
-    authors = set(query.obs["celltype"].astype(str))
+    authors = set(d["author"])
     legend_rows = []
     for k in FINE_ORDER:
         n = int(n_called.get(k, 0))
@@ -240,58 +187,70 @@ def main():
     print(f"column 3 legend: {len(shown)} of {len(FINE_ORDER)} types shown")
     print(legend_tab.to_string(index=False))
 
+    n_query = len(pred)
     if args.panel:
-        fig, ax = plt.subplots(figsize=(6, 9))
-        umap_panel(ax, np.asarray(query.obsm["X_umap"]), pred, "Query: viewmastR predictions",
-                   legend=shown, size=QSIZE)
-        fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.36)
+        fig = plt.figure(figsize=(FIG_W, FIG_H))
+        umap_panel(box(fig, 0.3, 9.8, 6.4, 5.6), d["query_xy"], pred,
+                   "(c) Query: viewmastR prediction", legend=shown, size=QSIZE)
+        dispersion_panel(box(fig, 1.4, 1.6, 5.2, 3.3), d["dispersion"]["query"],
+                         "(f) Query: variable genes")
         fig.savefig(OUT / "test_panel.png", dpi=150)
         return
     # Predicted reference label vs the query authors' label, fraction of each column
-    author = query.obs["celltype"].astype(str)
-    tab = pd.crosstab(pred, author)
+    tab = pd.crosstab(pred.to_numpy(), d["author"])
     tab = tab.reindex(index=FINE_ORDER, fill_value=0).loc[:, lineage_order(tab.columns)]
     frac = tab.div(tab.sum(axis=0), axis=1)
     print(tab.to_string())
 
-    # One figure: reference labels, query author labels, query predictions, heatmap
-    real = ref[~ref.obs["simulated"].to_numpy()]
-    fig = plt.figure(figsize=(26, 10))
-    gs = fig.add_gridspec(1, 3, left=0.005, right=0.70, top=0.90, bottom=0.36, wspace=0.05)
-    axes = [fig.add_subplot(gs[0, i]) for i in range(3)]
-    umap_panel(axes[0], np.asarray(real.obsm["X_umap"]), real.obs[label],
-               f"(a) Reference: BoneMarrowMap CellType ({real.n_obs:,} real cells)")
-    umap_panel(axes[1], np.asarray(query.obsm["X_umap"]), query.obs["celltype"],
-               f"(b) Query: authors' labels ({query.n_obs:,} cells)", size=QSIZE)
-    umap_panel(axes[2], np.asarray(query.obsm["X_umap"]), pred,
-               "(c) Query: viewmastR predictions", legend=shown, size=QSIZE)
-    x0, x1, y0, y1 = 0.800, 0.955, 0.16, 0.86
-    ax = fig.add_axes([x0, y0, x1 - x0, y1 - y0])
+    # Top row: reference labels, query author labels, query prediction (UMAPs with legends below).
+    # Under the first two columns: the gene dispersion of each dataset, then the shared gene count.
+    # Right: the heatmap.
+    fig = plt.figure(figsize=(FIG_W, FIG_H))
+    cols_x = [0.3, 7.0, 13.7]
+    umap_panel(box(fig, cols_x[0], 9.8, 6.4, 5.6), d["ref_xy"], d["ref_label"],
+               f"(a) Reference: BoneMarrowMap\n({len(d['ref_label']):,} real cells)")
+    umap_panel(box(fig, cols_x[1], 9.8, 6.4, 5.6), d["query_xy"], d["author"],
+               f"(b) Query: authors' labels\n({n_query:,} cells)", size=QSIZE)
+    umap_panel(box(fig, cols_x[2], 9.8, 6.4, 5.6), d["query_xy"], pred,
+               "(c) Query: viewmastR prediction\n(reference labels)", legend=shown, size=QSIZE)
+    dispersion_panel(box(fig, cols_x[0] + 1.2, 1.5, 5.0, 2.9), d["dispersion"]["reference"],
+                     "(e) Reference: variable genes")
+    dispersion_panel(box(fig, cols_x[1] + 1.2, 1.5, 5.0, 2.9), d["dispersion"]["query"],
+                     "(f) Query: variable genes")
+    fig.text((cols_x[0] + cols_x[1] + 6.4) / 2 / FIG_W, 0.45 / FIG_H,
+             f"{d['n_genes']:,} common genes used for transfer", ha="center", va="center",
+             fontsize=FS_TITLE, fontweight="bold")
+
+    x0, x1, y0, y1 = 23.0, 25.6, 2.4, 15.1  # heatmap, inches
+    ax = box(fig, x0, y0, x1 - x0, y1 - y0)
     im = ax.imshow(frac.to_numpy(), aspect="auto", cmap="viridis", vmin=0, vmax=1,
                    interpolation="nearest")
     ax.set_xticks(range(frac.shape[1]), frac.columns, rotation=90)
     ax.set_yticks(range(frac.shape[0]), frac.index)
-    ax.tick_params(labelsize=7, length=0)
-    ax.set_xlabel(f"Query authors' label ({query.n_obs:,} cells)")
-    rows = fig.add_axes([x0 - 0.008, y0, 0.006, y1 - y0], sharey=ax)
+    ax.tick_params(labelsize=FS_TICK - 1, length=0)
+    ax.set_xlabel("Query authors' label", fontsize=FS_LABEL)
+    rows = box(fig, x0 - 0.2, y0, 0.15, y1 - y0)
+    rows.sharey(ax)
     rows.imshow(np.array([[matplotlib.colors.to_rgb(color(k))] for k in frac.index]),
                 aspect="auto", interpolation="nearest")
-    cols = fig.add_axes([x0, y1 + 0.006, x1 - x0, 0.015], sharex=ax)
+    cols = box(fig, x0, y1 + 0.08, x1 - x0, 0.2)
+    cols.sharex(ax)
     cols.imshow(np.array([[matplotlib.colors.to_rgb(color(k)) for k in frac.columns]]),
                 aspect="auto", interpolation="nearest")
-    cols.set_title("(d) Prediction vs authors' label", fontsize=11, pad=8)
+    cols.set_title("(d) Prediction vs\nauthors' label", fontsize=FS_TITLE, pad=10)
     for a in (rows, cols):
         a.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         for sp in a.spines.values():
             sp.set_visible(False)
     # Row names sit left of the row colour strip
     ax.tick_params(labelleft=False)
-    rows.tick_params(labelleft=True, labelsize=7, length=0)
-    rows.set_ylabel("viewmastR prediction (reference label)")
+    rows.tick_params(labelleft=True, labelsize=FS_TICK - 1, length=0)
+    rows.set_ylabel("viewmastR prediction (reference label)", fontsize=FS_LABEL)
     ax.xaxis.set_tick_params(labelbottom=True)
-    cax = fig.add_axes([0.972, 0.55, 0.008, 0.2])
-    fig.suptitle(TITLE, fontsize=16, y=0.985)
-    fig.colorbar(im, cax=cax, label="Fraction of column")
+    cax = box(fig, 25.85, 8.5, 0.18, 3.5)
+    fig.colorbar(im, cax=cax).set_label("Fraction of column", fontsize=FS_LABEL)
+    cax.tick_params(labelsize=FS_TICK)
+    fig.suptitle(TITLE, fontsize=FS_SUPTITLE, y=1 - 0.35 / FIG_H, va="top")
     fig.savefig(OUT / "transfer_umap.png", dpi=150)
     # Vector copy for Illustrator: text and axes stay editable; the scatter layers are 300 dpi images
     fig.savefig(OUT / "transfer_umap.pdf", dpi=300)
