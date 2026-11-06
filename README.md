@@ -135,6 +135,12 @@ The tutorials also use these datasets:
 - Granja JM, Klemm S, McGinnis LM, et al. Single-cell multiomic analysis identifies
   regulatory programs in mixed-phenotype acute leukemia. *Nat Biotechnol* 37, 1458-1465
   (2019). GEO GSE139369.
+- van Galen P, Hovestadt V, Wadsworth MH 2nd, et al. Single-cell RNA-seq reveals AML
+  hierarchies relevant to disease progression and immunity. *Cell* 176, 1265-1281.e24
+  (2019). doi:10.1016/j.cell.2019.01.031. GEO GSE116256.
+- Corces MR, Buenrostro JD, Wu B, et al. Lineage-specific and single-cell chromatin
+  accessibility charts human hematopoiesis and leukemia evolution. *Nat Genet* 48,
+  1193-1203 (2016). GEO GSE74246.
 
 ## Authors
 

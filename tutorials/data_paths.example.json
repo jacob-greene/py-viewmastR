@@ -1,7 +1,5 @@
 {
   "greenleaf_reference": "/path/to/greenleaf_bone_marrow_counts.h5ad",
   "greenleaf_label": "celltype",
-  "large_query": "/path/to/large_query_counts.h5ad",
-  "large_query_gene_column": "symbol",
   "cache_dir": "/path/to/a/download/cache"
 }

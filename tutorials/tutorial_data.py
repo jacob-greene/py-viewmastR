@@ -1,7 +1,7 @@
 """Data loaders shared by the tutorials.
 
-Public data download on first use into ``cache_dir``. Local data (the Greenleaf reference
-as h5ad, a large query) come from ``tutorials/data_paths.json``, which is not in git. Copy
+Public data download on first use into ``cache_dir``. The one local file (the Greenleaf
+reference as h5ad) comes from ``tutorials/data_paths.json``, which is not in git. Copy
 ``data_paths.example.json`` to ``data_paths.json`` and fill in your paths.
 
 ==================  ==========================================================  ==========
@@ -21,7 +21,9 @@ CD34 multiome RNA   Persad et al. 2023 (SEACells), Zenodo 6383269,              
                     CD34+ enriched bone marrow
 Corces bulk RNA     Corces et al. 2016 (GEO GSE74246), as shipped with the      download
                     viewmastR R package
-Large query         any large h5ad of raw counts (cells x genes)                local path
+AML scRNA-seq       van Galen et al. 2019 (GEO GSE116256), Seq-Well, the 16     download
+                    diagnosis (day 0) AML bone marrow samples
+Large query         the BoneMarrowMap atlas above, opened on disk               download
 ==================  ==========================================================  ==========
 """
 
@@ -63,6 +65,7 @@ BDEV_TO_BROAD = {
     "Pre-pDC": "pDC", "Pre-pDC Cycling": "pDC", "pDC": "pDC",
 }
 VIEWMASTR_RAW = "https://raw.githubusercontent.com/furlan-lab/viewmastR/main/inst/extdata/deconvolute/{}"
+VANGALEN = "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE116nnn/GSE116256/suppl/GSE116256_RAW.tar"
 
 
 def config() -> dict:
@@ -388,6 +391,43 @@ def gene_weights() -> pd.DataFrame:
     return pd.read_csv(path, sep="\t")
 
 
-def large_query(backed: bool = True) -> ad.AnnData:
-    """The large query of the big-query tutorial (raw counts), opened on disk by default."""
-    return ad.read_h5ad(config()["large_query"], backed="r" if backed else None)
+def vangalen_aml() -> ad.AnnData:
+    """AML bone marrow at diagnosis (van Galen et al. 2019, GEO GSE116256), raw counts.
+
+    The 16 day-0 AML samples of the Seq-Well data set (the healthy donors, later time points
+    and cell lines are left out). ``.obs`` keeps ``sample`` and the authors' ``CellType``
+    and ``PredictionRefined`` (``malignant`` or ``normal``). Cached as
+    ``vangalen_aml_d0.h5ad``.
+    """
+    cache = Path(config()["cache_dir"])
+    out = cache / "vangalen_aml_d0.h5ad"
+    if out.exists():
+        return ad.read_h5ad(out)
+    parts = []
+    with tarfile.open(_download(VANGALEN, "GSE116256_RAW.tar")) as tf:
+        files = {}  # sample -> {"dem": member, "anno": member}; the two have different GSM numbers
+        for m in tf.getmembers():
+            hit = re.fullmatch(r"GSM\d+_(AML[^_]*-D0)\.(dem|anno)\.txt\.gz", m.name)
+            if hit:
+                files.setdefault(hit[1], {})[hit[2]] = m
+        for sample, f in sorted(files.items()):
+            x = pd.read_csv(gzip.open(tf.extractfile(f["dem"])), sep="\t", index_col=0)
+            anno = pd.read_csv(gzip.open(tf.extractfile(f["anno"])), sep="\t", index_col=0)
+            obs = anno.loc[x.columns, ["CellType", "PredictionRefined"]].assign(sample=sample)
+            parts.append(ad.AnnData(sp.csr_matrix(x.T.to_numpy(dtype=np.float32)), obs=obs,
+                                    var=pd.DataFrame(index=x.index.astype(str))))
+    a = ad.concat(parts, join="inner")
+    a.write_h5ad(out.with_suffix(".part"), compression="gzip")
+    out.with_suffix(".part").rename(out)
+    return a
+
+
+def large_query() -> ad.AnnData:
+    """The large query of the big-query tutorial: the BoneMarrowMap atlas, opened on disk.
+
+    Raw counts, 263,159 cells x 34,009 genes, read with ``backed="r"`` so the counts stay on
+    disk. ``.obs`` keeps ``CellType_Broad`` and ``Study``. To label your own large query,
+    open it the same way: ``anndata.read_h5ad(path, backed="r")``.
+    """
+    path = _download(BONEMARROWMAP, "BoneMarrowMap_Annotated_Dataset_expandedFeatures.h5ad", BONEMARROWMAP_MD5)
+    return ad.read_h5ad(path, backed="r")
