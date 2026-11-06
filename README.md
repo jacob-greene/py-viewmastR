@@ -63,7 +63,6 @@ viewmastR learned the 55 BoneMarrowMap cell types and labelled a T-cell-depleted
 dataset (8,627 cells, 18 author labels).
 (**a**) Reference. (**b**) Query, authors' labels. (**c**) Query, viewmastR labels.
 (**d**) Fraction of each author label (column) given each predicted type (row).
-(**e**, **f**) Gene dispersion; selected genes are red.
 On held-out real reference cells, accuracy is 72.9 %.
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes the figure.
 

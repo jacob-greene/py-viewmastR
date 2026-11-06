@@ -12,7 +12,7 @@ re-embedded. Colours come from ``tutorials/celltype_colors.py``, which the tutor
 
 Writes ``docs/img/transfer_umap.png`` and an editable vector copy, ``docs/img/transfer_umap.pdf``:
 three UMAPs, a heatmap of the predicted label against the query authors' label, and under the
-first two UMAPs the gene dispersion plot of each dataset with the number of shared genes.
+first two UMAPs the number of shared genes.
 The prediction legend lists types called on at least 10 query cells; a mature type is
 listed only if the query authors label that population too (``MATURE``). The heatmap keeps all 55
 types, so uncalled types show as empty rows.
@@ -28,7 +28,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import anndata as ad
 import matplotlib
 
 matplotlib.use("Agg")
@@ -78,7 +77,7 @@ def lineage_order(labels) -> list[str]:
 # Font sizes (points). The figure is 27 inches wide and shown about 900 pixels wide in the
 # README, so 1 point is about half a pixel there: panel titles need 24 points or more.
 FS_SUPTITLE, FS_TITLE, FS_LABEL, FS_TICK, FS_LEGEND = 34, 26, 18, 13, 11
-FIG_W, FIG_H = 27, 17.5  # inches
+FIG_W, FIG_H = 27, 13.5  # inches
 
 
 def box(fig, left, bottom, width, height):
@@ -104,18 +103,6 @@ def umap_panel(ax, xy, labels, title, legend=None, size=1.5):
               frameon=False, fontsize=FS_LEGEND, handletextpad=0.2, columnspacing=0.8)
 
 
-def dispersion_panel(ax, var, title):
-    """Log dispersion against log mean of every gene; selected genes in red (``plot_feature_dispersion``)."""
-    vm.plot_feature_dispersion(ad.AnnData(var=var), ax=ax, size=2)
-    ax.set_title(title, fontsize=FS_TITLE)
-    ax.xaxis.label.set_size(FS_LABEL)
-    ax.yaxis.label.set_size(FS_LABEL)
-    ax.tick_params(labelsize=FS_TICK)
-    ax.legend(frameon=False, markerscale=6, fontsize=FS_TICK, loc="upper right")
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-
-
 def compute(args) -> dict:
     """Train, predict and score; return what the figure draws."""
     label = "CellType"
@@ -135,8 +122,6 @@ def compute(args) -> dict:
     vgr = set(vm.get_selected_features(ref))
     vg = [g for g in vm.get_selected_features(query) if g in vgr]
     print(len(vg), "shared variable genes")
-    cols = ["log_mean", "log_dispersion", "dispersion_fit", "selected_feature"]
-    disp = {"reference": ref.var[cols].copy(), "query": query.var[cols].copy()}
 
     res = vm.viewmastR(query, ref, label, selected_features=vg, seed=SEED, workers=1,
                        return_type="list")
@@ -149,7 +134,7 @@ def compute(args) -> dict:
             "query_xy": np.asarray(query.obsm["X_umap"]),
             "author": query.obs["celltype"].astype(str).to_numpy(),
             "pred": query.obs["viewmastR_pred"].astype(str).to_numpy(),
-            "dispersion": disp, "n_genes": len(vg), "accuracy": acc}
+            "n_genes": len(vg), "accuracy": acc}
 
 
 def main():
@@ -190,10 +175,8 @@ def main():
     n_query = len(pred)
     if args.panel:
         fig = plt.figure(figsize=(FIG_W, FIG_H))
-        umap_panel(box(fig, 0.3, 9.8, 6.4, 5.6), d["query_xy"], pred,
+        umap_panel(box(fig, 0.3, 5.8, 6.4, 5.6), d["query_xy"], pred,
                    "(c) Query: viewmastR prediction", legend=shown, size=QSIZE)
-        dispersion_panel(box(fig, 1.4, 1.6, 5.2, 3.3), d["dispersion"]["query"],
-                         "(f) Query: variable genes")
         fig.savefig(OUT / "test_panel.png", dpi=150)
         return
     # Predicted reference label vs the query authors' label, fraction of each column
@@ -203,25 +186,21 @@ def main():
     print(tab.to_string())
 
     # Top row: reference labels, query author labels, query prediction (UMAPs with legends below).
-    # Under the first two columns: the gene dispersion of each dataset, then the shared gene count.
+    # Under the first two columns: the shared gene count.
     # Right: the heatmap.
     fig = plt.figure(figsize=(FIG_W, FIG_H))
     cols_x = [0.3, 7.0, 13.7]
-    umap_panel(box(fig, cols_x[0], 9.8, 6.4, 5.6), d["ref_xy"], d["ref_label"],
+    umap_panel(box(fig, cols_x[0], 5.8, 6.4, 5.6), d["ref_xy"], d["ref_label"],
                f"(a) Reference: BoneMarrowMap\n({len(d['ref_label']):,} real cells)")
-    umap_panel(box(fig, cols_x[1], 9.8, 6.4, 5.6), d["query_xy"], d["author"],
+    umap_panel(box(fig, cols_x[1], 5.8, 6.4, 5.6), d["query_xy"], d["author"],
                f"(b) Query: authors' labels\n({n_query:,} cells)", size=QSIZE)
-    umap_panel(box(fig, cols_x[2], 9.8, 6.4, 5.6), d["query_xy"], pred,
+    umap_panel(box(fig, cols_x[2], 5.8, 6.4, 5.6), d["query_xy"], pred,
                "(c) Query: viewmastR prediction\n(reference labels)", legend=shown, size=QSIZE)
-    dispersion_panel(box(fig, cols_x[0] + 1.2, 1.5, 5.0, 2.9), d["dispersion"]["reference"],
-                     "(e) Reference: variable genes")
-    dispersion_panel(box(fig, cols_x[1] + 1.2, 1.5, 5.0, 2.9), d["dispersion"]["query"],
-                     "(f) Query: variable genes")
-    fig.text((cols_x[0] + cols_x[1] + 6.4) / 2 / FIG_W, 0.45 / FIG_H,
+    fig.text((cols_x[0] + cols_x[1] + 6.4) / 2 / FIG_W, 0.5 / FIG_H,
              f"{d['n_genes']:,} common genes used for transfer", ha="center", va="center",
              fontsize=FS_TITLE, fontweight="bold")
 
-    x0, x1, y0, y1 = 23.0, 25.6, 2.4, 15.1  # heatmap, inches
+    x0, x1, y0, y1 = 23.0, 25.6, 1.5, 11.1  # heatmap, inches
     ax = box(fig, x0, y0, x1 - x0, y1 - y0)
     im = ax.imshow(frac.to_numpy(), aspect="auto", cmap="viridis", vmin=0, vmax=1,
                    interpolation="nearest")
@@ -247,7 +226,7 @@ def main():
     rows.tick_params(labelleft=True, labelsize=FS_TICK - 1, length=0)
     rows.set_ylabel("viewmastR prediction (reference label)", fontsize=FS_LABEL)
     ax.xaxis.set_tick_params(labelbottom=True)
-    cax = box(fig, 25.85, 8.5, 0.18, 3.5)
+    cax = box(fig, 25.85, 4.5, 0.18, 3.5)
     fig.colorbar(im, cax=cax).set_label("Fraction of column", fontsize=FS_LABEL)
     cax.tick_params(labelsize=FS_TICK)
     fig.suptitle(TITLE, fontsize=FS_SUPTITLE, y=1 - 0.35 / FIG_H, va="top")
