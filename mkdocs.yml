@@ -80,5 +80,6 @@ nav:
       - Deconvolute bulk RNA-seq: tutorials/08_deconvolute.ipynb
   - Reference: reference.md
   - Comparison with R: r_comparison.md
+  - Benchmark: benchmark.md
   - Changelog: changelog.md
   - Development: development.md
