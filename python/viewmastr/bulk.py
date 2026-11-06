@@ -62,7 +62,8 @@ def splat_bulk_reference(
             raise ValueError(f"dist={dist!r} needs a query to take cell sizes from")
         sizes, replace = _cell_totals(query), False
     genes = pd.Index(ref.var[bulk_feature_col] if bulk_feature_col else ref.var_names).astype(str)
-    universe = list(genes) if query is None else [g for g in dict.fromkeys(genes) if g in set(query.var_names)]
+    query_genes = None if query is None else set(query.var_names)
+    universe = list(genes) if query is None else [g for g in dict.fromkeys(genes) if g in query_genes]
     first = pd.Series(np.arange(len(genes)), index=genes)
     cols = first[~first.index.duplicated()][universe].to_numpy()  # first row of a repeated gene, as R match()
     bulk = np.rint(counts(ref, layer)[:, cols].toarray()).clip(min=0).astype(np.int64).T  # genes x samples

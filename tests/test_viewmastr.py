@@ -66,6 +66,16 @@ def test_infer_reproduces_training_labels(data, tmp_path):
     assert vm.get_weights(tmp_path).shape == (len(res.adata.var_names), 4)
 
 
+def test_infer_is_linear_in_genes(tmp_path):
+    # A per-gene rebuild of set(query.var_names) made this O(genes^2): ~40 s at 6,000 genes.
+    import time
+    ref, query = synthetic(20, seed=1, n_genes=6000), synthetic(5, seed=2, n_genes=6000)
+    vm.viewmastR(query.copy(), ref, "celltype", max_epochs=1, workers=1, model_dir=tmp_path, verbose=False)
+    start = time.perf_counter()
+    vm.viewmastR_infer(query.copy(), tmp_path)
+    assert time.perf_counter() - start < 5
+
+
 def test_split_follows_r(data):
     ref, _ = data
     ts = vm.setup_training(None, ref, "celltype", seed=11)

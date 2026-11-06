@@ -220,14 +220,15 @@ def viewmastR_infer(
     model = Model.load(model_dir)
     if selected_features is not None and list(selected_features) != model.features:
         raise ValueError("selected_features differ from the features the model was trained on")
-    missing = [g for g in model.features if g not in set(query.var_names)]
+    query_genes = set(query.var_names)
+    missing = [g for g in model.features if g not in query_genes]
     if missing:
         raise ValueError(f"{len(missing)} model features are missing from the query, e.g. {missing[:5]}")
     if labels is not None:
         if len(labels) != len(model.labels):
             raise ValueError("labels has a different length from the model's classes")
         model.labels = list(labels)
-    sf_genes = [g for g in (sf_genes or model.sf_genes or model.features) if g in set(query.var_names)]
+    sf_genes = [g for g in (sf_genes or model.sf_genes or model.features) if g in query_genes]
     sf = size_factors(library_sizes(query, sf_genes, layer, chunk_size))
     logits = _predict(query, model, model.features, sf, "log", layer, chunk_size)
     _annotate(query, logits, model.labels, query_celldata_col, return_probs, False)
