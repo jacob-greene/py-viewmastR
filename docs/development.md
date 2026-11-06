@@ -25,7 +25,7 @@ shown with their stored outputs (mkdocs-jupyter, `execute: false`); the build ne
 The API reference is read from the docstrings (mkdocstrings), so it needs no compiled extension.
 
 ```bash
-uv pip install mkdocs mkdocs-material mkdocs-jupyter "mkdocstrings[python]"
+uv pip install mkdocs mkdocs-material mkdocs-jupyter "mkdocstrings[python]" ruff
 mkdocs serve            # preview at http://127.0.0.1:8000
 mkdocs build --strict   # what the workflow runs
 ```

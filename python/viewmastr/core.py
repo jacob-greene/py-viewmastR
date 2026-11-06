@@ -147,12 +147,12 @@ def viewmastR(
     ``query.obs[query_celldata_col]``; ``return_probs`` / ``return_logits`` add one
     ``prob_<label>`` / ``logit_<label>`` column per class.
 
-    Python-only arguments: ``seed`` (see :func:`setup_training`), ``workers`` (burn data
-    loader threads; R uses 16, and ``workers=1`` with a ``seed`` makes training fully
-    reproducible), ``layer`` / ``ref_layer`` (count layers) and ``chunk_size`` (query rows
-    read at a time).
+    Python-only arguments: ``seed`` (see [`setup_training`][viewmastr.setup_training]),
+    ``workers`` (burn data loader threads; R uses 16, and ``workers=1`` with a ``seed`` makes
+    training fully reproducible), ``layer`` / ``ref_layer`` (count layers) and ``chunk_size``
+    (query rows read at a time).
 
-    Returns the query (``return_type="object"``) or a :class:`ViewmastrResult`.
+    Returns the query (``return_type="object"``) or a [`ViewmastrResult`][viewmastr.ViewmastrResult].
     """
     if train_only:
         query = None

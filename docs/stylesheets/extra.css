@@ -1,0 +1,17 @@
+/* Notebook progress logs go to stderr; show them like stdout, not as error boxes. */
+.md-typeset .jupyter-wrapper .jp-RenderedText[data-mime-type="application/vnd.jupyter.stderr"] {
+  background: transparent;
+  padding-top: 0;
+}
+
+/* Code blocks in notebook text cells: same size as in the other pages. */
+.md-typeset .jupyter-wrapper .jp-RenderedMarkdown pre,
+.md-typeset .jupyter-wrapper .jp-RenderedMarkdown pre code {
+  font-size: 0.85em;
+}
+
+/* Keep file names in table cells whole instead of breaking them mid-word. */
+.md-typeset table:not([class]) code {
+  word-break: normal;
+  overflow-wrap: normal;
+}

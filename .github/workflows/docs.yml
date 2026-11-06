@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install MkDocs
-        run: pip install "mkdocs>=1.6,<2" "mkdocs-material>=9.5" "mkdocs-jupyter>=0.25" "mkdocstrings[python]>=0.26"
+        run: pip install "mkdocs>=1.6,<2" "mkdocs-material>=9.5" "mkdocs-jupyter>=0.25" "mkdocstrings[python]>=0.26" ruff
       - name: Build
         run: mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3

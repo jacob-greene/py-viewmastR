@@ -8,7 +8,7 @@ Results live in ``adata.var``:
 ``log_mean``              natural log of the mean normalised count
 ``log_dispersion``        natural log of the coefficient of variation (in %)
 ``dispersion_fit``        cubic fit at ``log_mean`` (with ``_lci`` / ``_uci``)
-``selected_feature``      set by :func:`select_features`
+``selected_feature``      set by [`select_features`][viewmastr.select_features]
 ========================  ==================================================
 """
 
@@ -106,7 +106,8 @@ def select_features(adata: ad.AnnData, fit_min: float = 1.0, fit_max: float = np
 
 
 def get_selected_features(adata: ad.AnnData) -> list[str]:
-    """Genes marked by :func:`select_features` or :func:`set_selected_features`."""
+    """Genes marked by [`select_features`][viewmastr.select_features] or
+    [`set_selected_features`][viewmastr.set_selected_features]."""
     return list(adata.var_names[adata.var["selected_feature"].to_numpy(dtype=bool)])
 
 

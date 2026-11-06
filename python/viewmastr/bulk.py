@@ -1,10 +1,11 @@
 """Bulk RNA-seq as a reference, class balancing and deconvolution.
 
-- :func:`splat_bulk_reference` simulates single cells from bulk profiles, so a bulk dataset
-  can train ``viewmastR()``.
-- :func:`augment_data` tops up rare cell types with simulated cells (same simulator).
-- :func:`deconvolve_bulk` estimates cell-type exposures of bulk samples from single-cell
-  signatures.
+- [`splat_bulk_reference`][viewmastr.splat_bulk_reference] simulates single cells from bulk
+  profiles, so a bulk dataset can train ``viewmastR()``.
+- [`augment_data`][viewmastr.augment_data] tops up rare cell types with simulated cells (same
+  simulator).
+- [`deconvolve_bulk`][viewmastr.deconvolve_bulk] estimates cell-type exposures of bulk samples
+  from single-cell signatures.
 
 The simulator and both deconvolution solvers are the R package's Rust code (``rust/``).
 """
@@ -120,7 +121,10 @@ def augment_data(adata: ad.AnnData, column: str, norm_number: int = 2000, prune:
 
 @dataclass
 class Deconvolution:
-    """Result of :func:`deconvolve_bulk` (R: the list ``deconvolve_bulk()`` returns)."""
+    """Result of [`deconvolve_bulk`][viewmastr.deconvolve_bulk].
+
+    R: the list ``deconvolve_bulk()`` returns.
+    """
 
     exposures: pd.DataFrame
     pred_counts: pd.DataFrame

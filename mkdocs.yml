@@ -34,6 +34,9 @@ exclude_docs: |
 hooks:
   - scripts/docs_hooks.py
 
+extra_css:
+  - stylesheets/extra.css
+
 plugins:
   - search
   - mkdocs-jupyter:
@@ -48,6 +51,8 @@ plugins:
             show_source: false
             show_root_heading: true
             show_root_full_path: false
+            separate_signature: true    # signature as a code block (formatted by ruff if installed)
+            line_length: 88
             docstring_style: numpy
             heading_level: 3
             members_order: source

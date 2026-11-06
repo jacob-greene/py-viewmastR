@@ -57,7 +57,7 @@ def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | Non
 def plot_training_data(result, axes=None):
     """Accuracy and loss per epoch for training and validation cells.
 
-    ``result`` is a :class:`viewmastr.ViewmastrResult` (or its ``history`` dict).
+    ``result`` is a [`ViewmastrResult`][viewmastr.ViewmastrResult] (or its ``history`` dict).
     """
     h = getattr(result, "history", result)
     epochs = np.arange(1, len(h["train_acc"]) + 1)
@@ -75,7 +75,7 @@ def plot_training_data(result, axes=None):
 
 def plot_deconvolution(result, observed_counts: pd.DataFrame | None = None,
                        kind: str = "all"):
-    """Diagnostic panels for a :class:`viewmastr.Deconvolution`.
+    """Diagnostic panels for a [`Deconvolution`][viewmastr.Deconvolution].
 
     ``kind``: ``"proportions"`` (stacked bars), ``"fit"`` (observed vs predicted counts),
     ``"correlation"`` (per-sample correlation), ``"residuals"``, ``"intercept"`` or ``"all"``.
