@@ -134,13 +134,11 @@ for _types in FAMILY.values():
         COLOR[_k] = shade(COLOR[_types[0]], _taken)
         _taken.append(COLOR[_k])
 # Types that must not share a hue with the author label of their group (Mature B against the query
-# authors' NaiveB): each gets the unused ``EXTRA`` colour farthest in CIELAB from every colour in use.
-DISTINCT = ["Mature B"]
-for _k in DISTINCT:
-    _free = [c for c in EXTRA if c not in COLOR.values()]
-    _pts = np.array([lab(c) for c in _taken])
-    COLOR[_k] = max(_free, key=lambda c: np.linalg.norm(_pts - lab(c), axis=1).min())
-    _taken.append(COLOR[_k])
+# authors' NaiveB). Mature B: of the sRGB colours (step 5, CIELAB lightness 30-80) at least 25
+# (Delta E 1976) from every other colour in the figure, the one farthest (CIEDE2000) from them all.
+DISTINCT = {"Mature B": "#0000ff"}
+COLOR.update(DISTINCT)
+_taken.extend(DISTINCT.values())
 # Mature reference types, by the palette name of the population. The column 3 legend shows a mature
 # type only if the query authors label that population too; developing types need no such match.
 MATURE = {
