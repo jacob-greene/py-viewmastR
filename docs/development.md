@@ -17,3 +17,18 @@ pytest
 | `docs/` | longer documentation and the README images |
 | `tutorials/` | the notebooks and their data loaders |
 
+
+## Documentation site
+
+The site is built with [MkDocs](https://www.mkdocs.org) and the Material theme. Notebooks are
+shown with their stored outputs (mkdocs-jupyter, `execute: false`); the build never runs them.
+The API reference is read from the docstrings (mkdocstrings), so it needs no compiled extension.
+
+```bash
+uv pip install mkdocs mkdocs-material mkdocs-jupyter "mkdocstrings[python]"
+mkdocs serve            # preview at http://127.0.0.1:8000
+mkdocs build --strict   # what the workflow runs
+```
+
+`.github/workflows/docs.yml` builds the site and deploys it to GitHub Pages on every push to
+`main`. In the repository settings, set Pages > Source to "GitHub Actions".

@@ -50,7 +50,7 @@ size-factor genes R used at training time. Python writes the same files, and R's
 (see below). With the query rows in that order, R labels the Caron query with each of 5
 Python models; agreement with Python's own labels is 99.5 % to 99.6 %. Python matches
 genes by name, so it does not need the rows in any order.
-[`scripts/parity_r.py`](scripts/parity_r.py) repeats this measurement on any data.
+[`scripts/parity_r.py`](../scripts/parity_r.py) repeats this measurement on any data.
 
 ## Differences from the R package
 

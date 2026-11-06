@@ -1,0 +1,79 @@
+site_name: py-viewmastR
+site_description: Cell-type label transfer for single-cell RNA-seq, in Python
+site_url: https://jacob-greene.github.io/py-viewmastR/
+repo_url: https://github.com/jacob-greene/py-viewmastR
+repo_name: jacob-greene/py-viewmastR
+edit_uri: ""
+copyright: py-viewmastR is MIT licensed. Developed by Jacob Greene and Scott Furlan.
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle: {icon: material/brightness-7, name: Dark mode}
+    - scheme: slate
+      primary: indigo
+      toggle: {icon: material/brightness-4, name: Light mode}
+
+# The tutorials live in tutorials/ (docs/tutorials is a link to it). Only the notebooks and
+# their README are pages; the data loader and local paths stay out of the site.
+exclude_docs: |
+  tutorials/*.py
+  tutorials/*.json
+  tutorials/__pycache__/
+  tutorials/data/
+  tutorials/.ipynb_checkpoints/
+
+hooks:
+  - scripts/docs_hooks.py
+
+plugins:
+  - search
+  - mkdocs-jupyter:
+      execute: false          # render the stored outputs; never re-run the notebooks
+      include_source: true
+      ignore_h1_titles: false
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [python]
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            docstring_style: numpy
+            heading_level: 3
+            members_order: source
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - toc: {permalink: true}
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Get started:
+      - How to use viewmastR: tutorials/01_how_to.ipynb
+  - Articles:
+      - Overview: tutorials/README.md
+      - A deeper look at viewmastR: tutorials/02_in_depth.ipynb
+      - Bulk dataset as a reference: tutorials/03_bulk_reference.ipynb
+      - Augment data: tutorials/04_augment.ipynb
+      - Saved models: tutorials/05_saved_model.ipynb
+      - Extra functions: tutorials/06_extras.ipynb
+      - Large query objects: tutorials/07_big_query.ipynb
+      - Deconvolute bulk RNA-seq: tutorials/08_deconvolute.ipynb
+  - Reference: reference.md
+  - Comparison with R: r_comparison.md
+  - Changelog: changelog.md
+  - Development: development.md
