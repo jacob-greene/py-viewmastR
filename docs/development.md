@@ -15,7 +15,7 @@ pytest
 | `scripts/parity_r.py` | agreement with R viewmastR on real data |
 | `scripts/readme_figures.py` | the README figure, as a PNG and as an editable PDF (`docs/img/transfer_umap.pdf`) |
 | `docs/` | longer documentation and the README images |
-| `tutorials/` | the notebooks and their data loaders |
+| `tutorials/` | the notebooks and their data loaders; `readme_panels.py` draws the README figure panels for both the script and tutorial 01 |
 
 
 ## Documentation site
