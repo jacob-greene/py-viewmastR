@@ -128,7 +128,7 @@ def main():
         cost_labels.append((ax, names, tot.to_numpy(), r["peak_gb"].to_numpy()))
         ax.set_xscale("log")
         span = np.log10(tot.max() / tot.min())
-        ax.xaxis.set_major_locator(matplotlib.ticker.LogLocator(subs=(1, 2, 5) if span < 1.5 else (1, 3)))
+        ax.xaxis.set_major_locator(matplotlib.ticker.LogLocator(subs=(1, 2, 5) if span < 1.5 else (1, 3) if span < 2.5 else (1,)))
         ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
         ax.margins(x=0.25, y=0.15)

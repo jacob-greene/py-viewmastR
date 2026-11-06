@@ -74,6 +74,7 @@ All settings are each tool's documented defaults, except where the table says ot
 | py-viewmastR | CPU | 0.732 | 0.732 | 0.433 | 0.693 | 44.1 | 0.5 | 4.6 |
 | py-viewmastR + augment | CPU | 0.732 | 0.738 | 0.470 | 0.699 | 57.1 | 0.5 | 6.3 |
 | viewmastR (R) | CPU | 0.734 | 0.734 | 0.434 | 0.696 | 74.8 | 6.0 | 5.9 |
+| CellTypist | CPU | 0.662 | 0.657 | 0.038 | 0.218 | 18,649.2 | 3.1 | 6.2 |
 | scANVI (CPU) | CPU | 0.729 | 0.726 | 0.492 | 0.660 | 1,580.7 | 0.6 | 3.2 |
 | SingleR | CPU | 0.611 | 0.591 | 0.260 | 0.515 | 46.6 | 1,119.8 | 3.5 |
 | Seurat | CPU | 0.683 | 0.678 | 0.622 | 0.710 | 87.6 | 204.8 | 17.2 |
@@ -100,15 +101,28 @@ Each column header gives the number of real training cells / held-out cells.
 | py-viewmastR | 0.87 | 0.99 | 0.44 | 0.87 | 0.63 |
 | py-viewmastR + augment | 0.77 | 0.99 | 0.65 | 0.88 | 0.67 |
 | viewmastR (R) | 0.83 | 0.99 | 0.44 | 0.88 | 0.63 |
+| CellTypist | 0.80 | 1.00 | 0.20 | 0.88 | 0.44 |
 | scANVI (CPU) | 0.74 | 0.99 | 0.58 | 0.85 | 0.55 |
 | SingleR | 0.40 | 0.91 | 0.48 | 0.63 | 0.43 |
 | Seurat | 0.87 | 1.00 | 0.56 | 0.61 | 0.54 |
+
+### CellTypist on `bmm`
+
+CellTypist ran with its default settings (no SGD, the stochastic gradient descent option). On `bmm`, training took 5.2 hours on 8 cores.
+
+| Reading | CellTypist | Range of the other six rows |
+|---|---|---|
+| Accuracy | 0.662 | 0.611 to 0.734 |
+| Macro-F1 | 0.657 | 0.591 to 0.738 |
+| ARI vs query authors | 0.038 | 0.260 to 0.622 |
+| Train time (h) | 5.2 | 0.01 to 0.44 |
+
+The ARI is low. The query predictions also spread over all 55 types. For example, 19 % of the query cells get the label Stromal. The other tools give Stromal to at most 0.3 % of the query cells. CellTypist offers `use_SGD=True` and `mini_batch=True` for large references. This page did not test them.
 
 ### Runs not in these results
 
 | Run | Status |
 |---|---|
-| CellTypist on `bmm` | Not finished with default settings (no SGD) after 5 hours on 8 cores; the job limit is 12 hours. It is not in these results |
 | scANVI on a GPU (both tasks) | Not run: the shared GPU queue did not start the jobs (queued 2.3 and 4.8 hours), so they were cancelled. The scANVI rows above ran on 8 CPU cores, so their times are not GPU times |
 
 ## How to read these results
