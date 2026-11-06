@@ -49,8 +49,12 @@ def peak_gb(path: Path) -> float:
 def score(task: str, d: Path):
     held = pd.read_csv(d / "held_obs.csv", index_col=0)["label"].astype(str)
     query = pd.read_csv(d / "query_obs.csv", index_col=0)["author"].astype(str)
-    ntrain = pd.read_csv(d / "train_obs.csv", index_col=0)["label"].value_counts()
-    rare = ntrain.sort_values(kind="stable").index[:5].tolist()
+    tr = pd.read_csv(d / "train_obs.csv", index_col=0)["label"]
+    ntrain = tr.value_counts()
+    # Rank rarity by REAL training cells: simulated "stimcell_*" cells top every Greenleaf
+    # type up to 2,000, so the total count would pick the types with the most real cells.
+    nreal = tr[~tr.index.astype(str).str.startswith("stimcell")].value_counts().reindex(ntrain.index, fill_value=0)
+    rare = nreal.sort_values(kind="stable").index[:5].tolist()
     rows, rare_rows = [], []
     for tool, name in TOOLS.items():
         f = d / f"pred_{tool}.csv"
@@ -69,7 +73,8 @@ def score(task: str, d: Path):
                      "query_nmi": normalized_mutual_info_score(query, pq),
                      "train_s": t["train_s"], "predict_s": t["predict_s"],
                      "peak_gb": peak_gb(d / f"rusage_{tool}.txt"), "n_train": t["n_train"]})
-        rare_rows += [{"task": task, "tool": name, "type": k, "n_train": int(ntrain[k]), "f1": f1[k]}
+        rare_rows += [{"task": task, "tool": name, "type": k, "n_train": int(nreal[k]),
+                       "n_held": int((held == k).sum()), "f1": f1[k]}
                       for k in rare]
     return pd.DataFrame(rows), pd.DataFrame(rare_rows)
 
@@ -84,6 +89,7 @@ def main():
         print(res.round(3).to_string(index=False))
         print(rare.round(3).to_string(index=False))
 
+    cost_labels = []
     fig, axes = plt.subplots(len(tasks), 3, figsize=(15, 4.2 * len(tasks)), squeeze=False,
                              gridspec_kw={"width_ratios": [1.3, 1.2, 1]})
     for i, task in enumerate(tasks):
@@ -104,24 +110,25 @@ def main():
         # (b) F1 of the 5 rarest training types
         ax = axes[i, 1]
         m = rare[rare["task"] == task].pivot(index="tool", columns="type", values="f1").loc[names]
-        nt = rare[rare["task"] == task].drop_duplicates("type").set_index("type")["n_train"]
+        nt = rare[rare["task"] == task].drop_duplicates("type").set_index("type")
+        nh, nt = nt["n_held"], nt["n_train"]
         m = m[nt.sort_values().index]
         im = ax.imshow(m.to_numpy(), cmap="viridis", vmin=0, vmax=1, aspect="auto")
         for (a, b), v in np.ndenumerate(m.to_numpy()):
             ax.text(b, a, f"{v:.2f}", ha="center", va="center", fontsize=7,
                     color="white" if v < 0.6 else "black")
-        ax.set_xticks(range(m.shape[1]), [f"{k}\n(n={nt[k]:,})" for k in m.columns], fontsize=7)
+        ax.set_xticks(range(m.shape[1]), [f"{k}\n(train {nt[k]:,}\nheld {nh[k]:,})" for k in m.columns], fontsize=7)
         ax.set_yticks(range(len(names)), names)
-        ax.set_title(f"({'abcdef'[3 * i + 1]}) F1 of the 5 rarest training types", loc="left", fontsize=10)
+        ax.set_title(f"({'abcdef'[3 * i + 1]}) F1 of the 5 types with fewest real training cells", loc="left", fontsize=10)
         fig.colorbar(im, ax=ax, fraction=0.04, label="F1")
         # (c) time and memory
         ax = axes[i, 2]
         tot = r["train_s"] + r["predict_s"]
         ax.scatter(tot, r["peak_gb"], s=40, c=["#e31a1c" if d == "GPU" else "#333333" for d in r["device"]])
-        for k, n in enumerate(names):
-            ax.annotate(n, (tot[k], r["peak_gb"][k]), fontsize=7, xytext=(4, 2), textcoords="offset points")
+        cost_labels.append((ax, names, tot.to_numpy(), r["peak_gb"].to_numpy()))
         ax.set_xscale("log")
-        ax.xaxis.set_major_locator(matplotlib.ticker.LogLocator(subs=(1, 2, 5)))
+        span = np.log10(tot.max() / tot.min())
+        ax.xaxis.set_major_locator(matplotlib.ticker.LogLocator(subs=(1, 2, 5) if span < 1.5 else (1, 3)))
         ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
         ax.margins(x=0.25, y=0.15)
@@ -129,6 +136,30 @@ def main():
         ax.set_ylabel("Peak memory (GB)")
         ax.set_title(f"({'abcdef'[3 * i + 2]}) Cost (red = GPU, black = 8 CPU cores)", loc="left", fontsize=10)
     fig.tight_layout()
+    # Label the cost points after layout, so each label can take the first free spot.
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    spots = [((4, 2), "left", "bottom"), ((4, -2), "left", "top"),
+             ((-4, 2), "right", "bottom"), ((-4, -2), "right", "top")]
+    for ax, names, xs, ys in cost_labels:
+        placed = []
+        pts = [ax.transData.transform((x, y)) for x, y in zip(xs, ys)]
+        for k, n in sorted(enumerate(names), key=lambda kn: -ys[kn[0]]):
+            for off, ha, va in spots:
+                t = ax.annotate(n, (xs[k], ys[k]), fontsize=7, xytext=off, textcoords="offset points",
+                                ha=ha, va=va)
+                bb = t.get_window_extent(rend).expanded(1.05, 1.1)
+                ab = ax.get_window_extent(rend)
+                outside = bb.x0 < ab.x0 or bb.x1 > ab.x1 or bb.y0 < ab.y0 or bb.y1 > ab.y1
+                hit = outside or any(bb.overlaps(o) for o in placed) or any(
+                    bb.contains(*p) for j, p in enumerate(pts) if j != k)
+                if not hit:
+                    break
+                t.remove()
+            else:
+                t = ax.annotate(n, (xs[k], ys[k]), fontsize=7, xytext=(4, 2), textcoords="offset points")
+                bb = t.get_window_extent(rend)
+            placed.append(bb)
     OUT.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / "benchmark.png", dpi=150)
     fig.savefig(OUT / "benchmark.pdf")

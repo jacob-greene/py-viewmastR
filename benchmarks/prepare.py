@@ -4,7 +4,7 @@ Two tasks, each a reference split into training and held-out cells plus an exter
 
 | Task | Training cells | Held-out cells | External query |
 |---|---|---|---|
-| ``greenleaf`` | Granja et al. 2019 atlas, 80 % of each type | the other 20 % | CD34+ bone marrow multiome RNA (Persad et al. 2023) |
+| ``greenleaf`` | Granja et al. 2019 atlas: 80 % of the real cells of each type, plus all simulated cells | the other 20 % of the real cells | CD34+ bone marrow multiome RNA (Persad et al. 2023) |
 | ``bmm`` | BoneMarrowMap ``CellType``, the real training cells of the README model | the README held-out cells | T-cell-depleted bone marrow multiome RNA (Persad et al. 2023) |
 
 Genes: the variable genes shared by the training cells and the query, picked as in tutorial 01.
@@ -24,6 +24,7 @@ import argparse
 import os
 from pathlib import Path
 
+import anndata as ad
 import numpy as np
 import scipy.io
 import scipy.sparse as sp
@@ -55,7 +56,12 @@ def main():
     if args.task == "greenleaf":
         ref = td.greenleaf_reference()
         ref.obs["label"] = ref.obs[td.config().get("greenleaf_label", "celltype")].astype(str)
-        train, held = td.bonemarrowmap_split(ref, "label", holdout=0.2, max_held=10**9, seed=0)
+        # 14,464 of the 36,318 cells are simulated ("stimcell_*"; they top each type up to
+        # 2,000). Hold out real cells only, so simulated copies never reach the scored cells;
+        # simulated cells stay in training, as in the tutorials.
+        sim = (ref.obs["orig.ident"].astype(str) == "stimcell").to_numpy()
+        train, held = td.bonemarrowmap_split(ref[~sim].copy(), "label", holdout=0.2, max_held=10**9, seed=0)
+        train = ad.concat([train, ref[sim]], merge="same")
         query = td.multiome_rna("cd34")
         aug = None
     else:
