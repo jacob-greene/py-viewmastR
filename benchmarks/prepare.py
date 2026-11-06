@@ -4,7 +4,7 @@ Two tasks, each a reference split into training and held-out cells plus an exter
 
 | Task | Training cells | Held-out cells | External query |
 |---|---|---|---|
-| ``greenleaf`` | Granja et al. 2019 atlas: 80 % of the real cells of each type, plus all simulated cells | the other 20 % of the real cells | CD34+ bone marrow multiome RNA (Persad et al. 2023) |
+| ``greenleaf`` | Granja et al. 2019 atlas: 80 % of the real cells of each type, plus simulated cells made from them | the other 20 % of the real cells | CD34+ bone marrow multiome RNA (Persad et al. 2023) |
 | ``bmm`` | BoneMarrowMap ``CellType``, the real training cells of the README model | the README held-out cells | T-cell-depleted bone marrow multiome RNA (Persad et al. 2023) |
 
 Genes: the variable genes shared by the training cells and the query, picked as in tutorial 01.
@@ -45,6 +45,42 @@ def write(a, out: Path, name: str):
     a.obs.to_csv(out / f"{name}_obs.csv")
 
 
+# Granja et al. 2019 ``BioClassification`` (25 clusters) -> the 16 benchmark types.
+# The ``NN_`` prefix is dropped, then sub-clusters are merged; the two ``Unk`` clusters are left out.
+GREENLEAF_MERGE = {"CLP.1": "CLP", "CLP.2": "CLP", "CD14.Mono.1": "CD14.Mono", "CD14.Mono.2": "CD14.Mono",
+                   "Pre.B": "B", "CD8.N": "T", "CD4.N1": "T", "CD4.N2": "T", "CD4.M": "T",
+                   "CD8.EM": "T", "CD8.CM": "T"}
+
+
+def greenleaf_split(ref):
+    """Real Greenleaf cells with 16 labels, split 80/20 per type; then simulated training cells.
+
+    Labels come from the published ``BioClassification`` column. Simulated cells already in
+    the file (``stimcell_*``) are dropped: they were made from all real cells, the held-out
+    ones too. New simulated cells are made from the training cells only, after the split.
+    """
+    bio = ref.obs["BioClassification"].astype("string")
+    real = bio.notna().to_numpy() & ~ref.obs_names.str.startswith("stimcell")
+    real &= ~bio.fillna("").str.endswith("_Unk").to_numpy()
+    ref = ref[real].copy()
+    base = ref.obs["BioClassification"].astype(str).str.split("_", n=1).str[1]
+    ref.obs["label"] = base.replace(GREENLEAF_MERGE).to_numpy()
+    if "celltype" in ref.obs:  # the lab copy carries the same 16 labels; check they agree
+        assert (ref.obs["celltype"].astype(str) == ref.obs["label"]).all()
+    assert ref.obs["label"].nunique() == 16
+    ref.obs = ref.obs[["label"]]
+    train, held = td.bonemarrowmap_split(ref, "label", holdout=0.2, max_held=10**9, seed=0)
+    assert not set(train.obs_names) & set(held.obs_names)
+    # The generator sees only the training cells, so no held-out molecule reaches training
+    train = vm.augment_data(train, "label", norm_number=2000, seed=0)
+    sim = train.obs_names.str.startswith("stimcell_")
+    n_real = train.obs.loc[~sim, "label"].value_counts()
+    n_sim = train.obs.loc[sim, "label"].value_counts().reindex(n_real.index, fill_value=0)
+    assert ((n_sim == (2000 - n_real).clip(lower=0)) | (n_real >= 2000)).all()
+    assert not set(train.obs_names[~sim]) & set(held.obs_names)
+    return train, held
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("task", choices=["greenleaf", "bmm"])
@@ -55,13 +91,7 @@ def main():
 
     if args.task == "greenleaf":
         ref = td.greenleaf_reference()
-        ref.obs["label"] = ref.obs[td.config().get("greenleaf_label", "celltype")].astype(str)
-        # 14,464 of the 36,318 cells are simulated ("stimcell_*"; they top each type up to
-        # 2,000). Hold out real cells only, so simulated copies never reach the scored cells;
-        # simulated cells stay in training, as in the tutorials.
-        sim = (ref.obs["orig.ident"].astype(str) == "stimcell").to_numpy()
-        train, held = td.bonemarrowmap_split(ref[~sim].copy(), "label", holdout=0.2, max_held=10**9, seed=0)
-        train = ad.concat([train, ref[sim]], merge="same")
+        train, held = greenleaf_split(ref)
         query = td.multiome_rna("cd34")
         aug = None
     else:

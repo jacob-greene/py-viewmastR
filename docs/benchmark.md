@@ -10,18 +10,29 @@ This page compares py-viewmastR with five other label-transfer tools. Every tool
 | Accuracy | Share of held-out cells that get their true label |
 | Macro-F1 | F1 score per cell type, averaged over types with equal weight. Rare types count as much as common types |
 | ARI, NMI | Adjusted Rand index and normalised mutual information. Each one scores how well the predicted query labels agree with the authors' query labels, with no label mapping (1 = the same partition). They are not accuracy, because the query authors used different type names |
-| Simulated cells | Cells in the Greenleaf reference file, named `stimcell_*`, that top each type up to 2,000 cells |
+| Simulated cells | Cells named `stimcell_*`, made by `augment_data()` from the training cells of one type. They top each `greenleaf` type up to 2,000 training cells |
 
 ## Tasks
 
 | Task | Reference (training) | Held-out cells | Query | Genes |
 |---|---|---|---|---|
-| `greenleaf` | Granja et al. 2019 atlas (GEO GSE139369), 16 types: 80 % of the real cells of each type plus all 14,464 simulated cells (31,954 cells) | the other 20 % of the real cells (4,364 cells) | CD34+ bone marrow multiome RNA, Persad et al. 2023 (Zenodo 6383269), 6,881 cells | 5,972 |
+| `greenleaf` | Granja et al. 2019 atlas, 16 types (see [Greenleaf source](#greenleaf-source)): 80 % of the real cells of each type (17,490 cells) plus 17,327 simulated cells made from them (34,817 cells) | the other 20 % of the real cells (4,364 cells) | CD34+ bone marrow multiome RNA, Persad et al. 2023 (Zenodo 6383269), 6,881 cells | 6,042 |
 | `bmm` | BoneMarrowMap (Zeng et al. 2025), `CellType` with 55 types: the cells that are not held out (118,509 cells) | 20 % of each type, at most 1,000 per type (35,575 cells); the README uses the same split | T-cell-depleted bone marrow, Persad et al. 2023 (Zenodo 6383269), 8,627 cells | 3,867 |
 
 The genes are the variable genes shared by the reference and the query, picked as in [How to use viewmastR](tutorials/01_how_to.ipynb). Every tool gets raw counts on these genes and normalises them its own way.
 
-On `greenleaf`, only real cells are held out. The simulated cells are copies built from real cells. If they were in the held-out set, a tool would score well by memorising them.
+On `greenleaf`, only real cells are held out. The simulated cells are made after the split, from the training cells only. So no molecule of a held-out cell reaches training. `prepare.py` asserts this: per type, the number of simulated cells is 2,000 minus the real training cells.
+
+An earlier version of this page used the simulated cells in the reference file. Those were made from all real cells, held-out cells too. That leak raised `greenleaf` macro-F1 by up to 0.03. The numbers below are from the fixed split.
+
+### Greenleaf source
+
+| Item | Detail |
+|---|---|
+| Public file | `scRNA-Healthy-Hematopoiesis-191120.rds` (Granja et al. 2019), linked from the GreenleafLab/MPAL-Single-Cell-2019 repository: `https://jeffgranja.s3.amazonaws.com/MPAL-10x/Supplementary_Data/Healthy-Data/scRNA-Healthy-Hematopoiesis-191120.rds` (md5 `8a98a0690009e0cd5c965baac7ca92d1`). It is a `SummarizedExperiment` with 35,582 cells, raw counts and the authors' `BioClassification` (25 clusters) |
+| Labels | `prepare.py` makes the 16 labels from `BioClassification`. It drops the `NN_` prefix, merges CLP.1 and CLP.2, CD14.Mono.1 and CD14.Mono.2, and Pre.B into B, merges the six CD4 and CD8 clusters into T, and leaves out the two `Unk` clusters (681 cells) |
+| Cells used here | A lab copy of that file with 21,854 of the 35,582 cells (some types down-sampled; the rule is not recorded). Every one of its cells is in the public file with the same counts and the same `BioClassification` |
+| From the public file | Convert the `.rds` to an h5ad of counts with a `BioClassification` column. For example, write `assay(se, "counts")` with `Matrix::writeMM` in R, then build the AnnData in Python. Point `greenleaf_reference` in `tutorials/data_paths.json` at it. `prepare.py` then runs as written. It uses all 34,901 labelled cells, so the numbers differ from this page |
 
 ## Tools
 
@@ -49,12 +60,12 @@ All settings are each tool's documented defaults, except where the table says ot
 
 | Tool | Device | Accuracy | Macro-F1 | ARI | NMI | Train (s) | Predict (s) | Peak memory (GB) |
 |---|---|---|---|---|---|---|---|---|
-| py-viewmastR | CPU | 0.928 | 0.910 | 0.576 | 0.614 | 9.4 | 0.5 | 2.3 |
-| viewmastR (R) | CPU | 0.925 | 0.906 | 0.566 | 0.610 | 18.2 | 2.6 | 3.6 |
-| CellTypist | CPU | 0.899 | 0.871 | 0.417 | 0.455 | 45.7 | 1.9 | 3.2 |
-| scANVI (CPU) | CPU | 0.919 | 0.897 | 0.333 | 0.438 | 1,908.2 | 0.3 | 2.0 |
-| SingleR | CPU | 0.816 | 0.773 | 0.223 | 0.312 | 10.7 | 69.4 | 2.1 |
-| Seurat | CPU | 0.929 | 0.908 | 0.559 | 0.606 | 56.3 | 52.9 | 8.2 |
+| py-viewmastR | CPU | 0.918 | 0.882 | 0.585 | 0.619 | 21.5 | 0.5 | 2.4 |
+| viewmastR (R) | CPU | 0.919 | 0.882 | 0.569 | 0.613 | 21.0 | 2.2 | 3.9 |
+| CellTypist | CPU | 0.888 | 0.847 | 0.391 | 0.449 | 37.3 | 1.9 | 3.2 |
+| scANVI (CPU) | CPU | 0.913 | 0.884 | 0.485 | 0.542 | 3,966.7 | 0.3 | 1.9 |
+| SingleR | CPU | 0.814 | 0.753 | 0.232 | 0.326 | 11.6 | 76.9 | 2.1 |
+| Seurat | CPU | 0.926 | 0.901 | 0.576 | 0.621 | 40.6 | 60.6 | 7.8 |
 
 #### `bmm`
 
@@ -75,12 +86,12 @@ Each column header gives the number of real training cells / held-out cells.
 
 | Tool | Plasma (50 / 12) | Early.Baso (83 / 20) | CD16.Mono (234 / 58) | cDC (260 / 65) | Late.Eryth (354 / 88) |
 |---|---|---|---|---|---|
-| py-viewmastR | 0.96 | 0.85 | 0.90 | 0.89 | 0.87 |
-| viewmastR (R) | 0.96 | 0.85 | 0.91 | 0.86 | 0.86 |
-| CellTypist | 0.89 | 0.73 | 0.90 | 0.82 | 0.90 |
-| scANVI (CPU) | 1.00 | 0.76 | 0.91 | 0.89 | 0.85 |
-| SingleR | 0.89 | 0.65 | 0.49 | 0.69 | 0.76 |
-| Seurat | 0.96 | 0.78 | 0.92 | 0.89 | 0.89 |
+| py-viewmastR | 0.96 | 0.63 | 0.90 | 0.82 | 0.82 |
+| viewmastR (R) | 0.96 | 0.63 | 0.89 | 0.83 | 0.83 |
+| CellTypist | 0.83 | 0.67 | 0.88 | 0.73 | 0.87 |
+| scANVI (CPU) | 0.96 | 0.68 | 0.91 | 0.84 | 0.84 |
+| SingleR | 0.75 | 0.55 | 0.51 | 0.64 | 0.75 |
+| Seurat | 0.92 | 0.77 | 0.91 | 0.88 | 0.90 |
 
 #### `bmm`: F1 of the 5 types with fewest real training cells
 
@@ -97,9 +108,8 @@ Each column header gives the number of real training cells / held-out cells.
 
 | Run | Status |
 |---|---|
-| CellTypist on `bmm` | Still running with default settings (no SGD) after more than 3 hours on 8 cores. Its row will be added when it ends, or reported as not finished in 12 hours |
-| scANVI on a GPU (both tasks) | Queued; the shared GPU partition had not started the jobs after several hours. The scANVI rows above ran on 8 CPU cores, so their times are not GPU times |
-
+| CellTypist on `bmm` | Not finished with default settings (no SGD) after 5 hours on 8 cores; the job limit is 12 hours. It is not in these results |
+| scANVI on a GPU (both tasks) | Not run: the shared GPU queue did not start the jobs (queued 2.3 and 4.8 hours), so they were cancelled. The scANVI rows above ran on 8 CPU cores, so their times are not GPU times |
 
 ## How to read these results
 
@@ -107,8 +117,10 @@ Each column header gives the number of real training cells / held-out cells.
 - ARI and NMI compare two different label sets. A higher value means the predicted query partition is closer to the authors' partition. It does not mean the labels are correct.
 - F1 for a rare type rests on few held-out cells (10 to 101 cells). With 10 held-out cells, one cell more or less correct moves F1 by up to about 0.1.
 - Train and predict times exclude data loading. Peak memory includes data loading.
+- Times are from one run on a shared node. Three runs of py-viewmastR training on the same `greenleaf` data took 15.0, 15.6 and 21.5 s. Do not read much into time differences under about 1.5-fold.
 - Seurat and SingleR do most of their work at prediction time, once per query. Their predict times grow with each new query.
 - viewmastR training uses several data-loader workers by default, so two runs are not bit-identical (see [Comparison with R](r_comparison.md)).
+- Two cost readings are not quite equal. R viewmastR uses its default data-loader threads, not 8. SingleR runs in forked processes (`MulticoreParam`); its peak memory is that of the largest single process, not the sum.
 
 ## Reproduce
 
@@ -120,4 +132,4 @@ Rscript benchmarks/run_r.R seurat $BENCH_DIR/greenleaf 8
 python benchmarks/summarize.py greenleaf bmm                    # scores, tables and the figure
 ```
 
-`prepare.py` lists the source file of each dataset. `summarize.py` skips any tool with no prediction file.
+`prepare.py` lists the source file of each dataset. The `bmm` data and both queries download on first use. For `greenleaf`, set `greenleaf_reference` in `tutorials/data_paths.json` first (see [Greenleaf source](#greenleaf-source)). `summarize.py` skips any tool with no prediction file.
