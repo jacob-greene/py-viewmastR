@@ -11,7 +11,7 @@ Both datasets are shown on their own stored UMAP (real BoneMarrowMap cells only)
 re-embedded. Colours come from ``viewmastr.palette``; a fine type with no palette colour of its
 own gets the next colour of ``EXTRA`` (31 colours far from the palette in CIELAB).
 
-Writes ``docs/img/transfer_umap.png``: three UMAPs and a heatmap of the predicted label against the
+Writes ``docs/img/transfer_umap.png`` and an editable vector copy, ``docs/img/transfer_umap.pdf``: three UMAPs and a heatmap of the predicted label against the
 query authors' label. The prediction legend lists types called on at least 10 query cells; a mature type is
 listed only if the query authors label that population too (``MATURE``). The heatmap keeps all 55
 types, so uncalled types show as empty rows.
@@ -37,6 +37,10 @@ import scanpy as sc
 
 import tutorial_data as td
 import viewmastr as vm
+
+# Editable text in the PDF (TrueType, not outlines); Helvetica or Arial if installed, else Liberation Sans
+plt.rcParams.update({"pdf.fonttype": 42, "ps.fonttype": 42, "font.family": "sans-serif",
+                     "font.sans-serif": ["Helvetica", "Arial", "Liberation Sans", "DejaVu Sans"]})
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "img"
 SEED = 20261103
@@ -289,8 +293,10 @@ def main():
     fig.suptitle(TITLE, fontsize=16, y=0.985)
     fig.colorbar(im, cax=cax, label="Fraction of column")
     fig.savefig(OUT / "transfer_umap.png", dpi=150)
+    # Vector copy for Illustrator: text and axes stay editable; the scatter layers are 300 dpi images
+    fig.savefig(OUT / "transfer_umap.pdf", dpi=300)
     plt.close("all")
-    print("wrote", *sorted(OUT.glob("*.png")))
+    print("wrote", *sorted(OUT.glob("transfer_umap.*")))
 
 
 if __name__ == "__main__":
