@@ -39,6 +39,9 @@ All notable changes to this project are documented here. The format follows
   build notes in `docs/development.md`.
 - Scott Furlan is a package author (`pyproject.toml`, README, LICENSE).
 - The `tutorials` extra pins `h5py<3.16`; newer h5py does not build on older glibc.
+- Tutorial 04 checks the simulated cells on the atlas's stored, study-corrected UMAP. A new
+  UMAP of the raw counts split the six studies of the atlas apart. Its query plots and
+  heatmap now use the README figure code.
 
 ## [0.1.0] - 2026-11-03
 
