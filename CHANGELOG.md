@@ -10,44 +10,34 @@ All notable changes to this project are documented here. The format follows
 
 - `viewmastr.palette`: one colour per bone marrow cell type, used by every tutorial and
   README figure. Base colours are those of the T-cell-depleted bone marrow multiome object;
-  the Granja et al. 2019 and Corces et al. 2016 labels map onto them. `plot_deconvolution()`
-  uses it when every cell type has a colour.
-- README figures: reference labels and query predictions on a shared UMAP, and a
-  confusion matrix of predicted against author labels (`scripts/readme_figures.py`,
-  `docs/img/`).
+  the Granja et al. 2019, Corces et al. 2016 and BoneMarrowMap broad labels map onto them.
+  `plot_deconvolution()` uses it when every cell type has a colour.
+- README figure: reference labels, query author labels and query predictions on their
+  stored UMAPs, and the fraction of each author label given each predicted type
+  (`scripts/readme_figures.py`; PNG and editable PDF in `docs/img/`).
+- A documentation site (MkDocs), built from the README, the docs pages, the tutorials and
+  the docstrings, and deployed to GitHub Pages on every push to `main`.
+- A benchmark against five other label-transfer tools (`benchmarks/`, `docs/benchmark.md`).
+- Tutorial loaders for the BoneMarrowMap atlas (`bonemarrowmap_reference()`,
+  `bonemarrowmap_split()`, `bonemarrowmap_augmented()`), downloaded from its public URL and
+  md5-checked.
 
 ### Changed
 
-- Tutorials 01 and 04 use the README figure's reference: BoneMarrowMap with its 55 fine
-  `CellType` labels, without the added B-cell development cells. Tutorial 01 trains once with
-  a fixed seed and reproduces the README figure. `tutorials/celltype_colors.py` gives the 55
-  types the README figure's colours.
-- README: shorter, `uv pip` install, a workflow flowchart (`scripts/workflow_svg.py`) that
-  points to the tutorials, a shorter figure legend. Dataset citations moved to the tutorials
-  README. The figure adds the gene dispersion plots and the shared gene count, with larger
-  text; `readme_figures.py --replot` redraws it without training.
-
-- Tutorials 01 and 04 and the README figures use the BoneMarrowMap atlas (Zeng et al. 2025,
-  broad labels) as the reference for the T-cell-depleted query, balanced with
-  `augment_data()` to 3,000 cells per type. New loaders `tutorial_data.bonemarrowmap_reference()`,
-  `bonemarrowmap_split()` and `bonemarrowmap_augmented()`; the atlas downloads from its public
-  URL and is md5-checked. Other tutorials keep the Granja et al. 2019 reference.
-- `viewmastr.palette` covers the BoneMarrowMap broad labels: 15 aliases and 3 new colours
-  (`Late GMP`, `Cycling Progenitor`, `Stromal`).
+- Tutorials 01 and 04 and the README figure use BoneMarrowMap (Zeng et al. 2025) with its
+  55 fine `CellType` labels as the reference, balanced with `augment_data()` to 3,000 cells
+  per type. The query is the T-cell-depleted bone marrow multiome object as published for the
+  Mellon tutorial (8,627 cells), with its stored UMAP and labels. Tutorial 01 trains once
+  with a fixed seed and reproduces the README figure. Other tutorials keep the Granja et al.
+  2019 reference.
 - `confusion_matrix()` reports an accuracy only when one label set contains the other. Two
   vocabularies that share a few names (for example `cDC`) no longer get a meaningless accuracy.
-- Shorter README. The function table, the R agreement measurements and the R differences
-  moved to `docs/r_comparison.md`; the tutorial table to `tutorials/README.md`; build notes
-  to `docs/development.md`.
+- `viewmastR_infer()` builds the query gene set once, not once per gene.
+- Shorter README with a workflow flowchart (`scripts/workflow_svg.py`) and a `uv pip`
+  install. The function table, the R agreement measurements and the R differences are in
+  `docs/r_comparison.md`; the tutorial table and dataset citations in `tutorials/README.md`;
+  build notes in `docs/development.md`.
 - Scott Furlan is a package author (`pyproject.toml`, README, LICENSE).
-- Tutorials 01 and 04 and the README figures use the T-cell-depleted bone marrow multiome
-  object as published for the Mellon tutorial (8,627 cells), with its stored UMAP and labels.
-  Nothing is re-normalised or re-embedded. `tutorial_data.bm_tcelldep()` replaces
-  `bm_tcelldep_full()`.
-- The README figures show the reference and the query on their own stored UMAPs, not on a
-  new UMAP of the model genes.
-- README: the R saved-model inference difference is the gene order of Seurat queries, not
-  the normalisation. The normalisation differences are listed separately and are small.
 - The `tutorials` extra pins `h5py<3.16`; newer h5py does not build on older glibc.
 
 ## [0.1.0] - 2026-11-03

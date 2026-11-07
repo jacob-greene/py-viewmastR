@@ -9,11 +9,10 @@ where noted.
 | ``viewmastr`` | its own (log) | multinomial logistic regression, 5 epochs (the default) |
 | ``viewmastr_aug`` | its own (log) | the same, trained on ``train_aug.h5ad`` (``bmm`` only) |
 | ``celltypist`` | counts per 10,000, log1p | logistic regression, ``feature_selection=False`` (genes are fixed) |
-| ``scanvi`` | none (raw counts) | scVI, then scANVI from it; predicts new cells without retraining. GPU if one is visible |
-| ``scanvi_cpu`` | none (raw counts) | the same, forced onto the CPU |
+| ``scanvi`` | none (raw counts) | scVI, then scANVI from it, on the CPU; predicts new cells without retraining |
 
 Writes ``<task dir>/pred_<tool>.csv`` (cell, set, label) and ``time_<tool>.json`` (seconds to
-train and to predict, data loading excluded; and the device).
+train and to predict, data loading excluded).
 
     python benchmarks/run_python.py celltypist $BENCH_DIR/greenleaf --threads 8
 """
@@ -66,29 +65,28 @@ def run_celltypist(train, sets, threads, d):
     return out, t1 - t0, time.perf_counter() - t1, "cpu"
 
 
-def run_scanvi(train, sets, threads, d, force_cpu=False):
+def run_scanvi(train, sets, threads, d):
     import scvi
     import torch
     scvi.settings.seed = SEED
     torch.set_num_threads(threads)
-    device = "gpu" if torch.cuda.is_available() and not force_cpu else "cpu"
     t0 = time.perf_counter()
     scvi.model.SCVI.setup_anndata(train, labels_key="label")
     vae = scvi.model.SCVI(train)
-    vae.train(accelerator=device)
+    vae.train(accelerator="cpu")
     lvae = scvi.model.SCANVI.from_scvi_model(vae, unlabeled_category="Unknown", labels_key="label")
-    lvae.train(accelerator=device)
+    lvae.train(accelerator="cpu")
     t1 = time.perf_counter()
     out = {}
     for n, a in sets.items():
         a.obs["label"] = "Unknown"
         out[n] = np.asarray(lvae.predict(a)).astype(str)
-    return out, t1 - t0, time.perf_counter() - t1, device
+    return out, t1 - t0, time.perf_counter() - t1, "cpu"
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("tool", choices=["viewmastr", "viewmastr_aug", "celltypist", "scanvi", "scanvi_cpu"])
+    p.add_argument("tool", choices=["viewmastr", "viewmastr_aug", "celltypist", "scanvi"])
     p.add_argument("task_dir", type=Path)
     p.add_argument("--threads", type=int, default=8)
     args = p.parse_args()
@@ -98,8 +96,7 @@ def main():
     for a in sets.values():
         a.obs = a.obs.iloc[:, :0].copy()  # no labels reach the predictor
     run = {"viewmastr": run_viewmastr, "viewmastr_aug": run_viewmastr,
-           "celltypist": run_celltypist, "scanvi": run_scanvi,
-           "scanvi_cpu": lambda *a: run_scanvi(*a, force_cpu=True)}[args.tool]
+           "celltypist": run_celltypist, "scanvi": run_scanvi}[args.tool]
     out, t_train, t_pred, device = run(train, sets, args.threads, d)
     pd.concat([pd.DataFrame({"cell": sets[n].obs_names, "set": n, "pred": out[n]}) for n in sets]) \
         .to_csv(d / f"pred_{args.tool}.csv", index=False)

@@ -34,16 +34,27 @@ from sklearn.metrics import adjusted_rand_score, f1_score, normalized_mutual_inf
 plt.rcParams.update({"pdf.fonttype": 42, "font.family": "sans-serif",
                      "font.sans-serif": ["Helvetica", "Arial", "Liberation Sans", "DejaVu Sans"]})
 TOOLS = {"viewmastr": "py-viewmastR", "viewmastr_aug": "py-viewmastR + augment",
-         "viewmastr_r": "viewmastR (R)", "celltypist": "CellTypist", "scanvi": "scANVI", "scanvi_cpu": "scANVI (CPU)",
+         "viewmastr_r": "viewmastR (R)", "celltypist": "CellTypist", "scanvi": "scANVI",
          "singler": "SingleR", "seurat": "Seurat"}
-TASKS = {"greenleaf_sub5000": "Subset test (5,000 training cells)", "greenleaf": "Granja 2019 atlas (16 types) -> CD34+ BM",
+TASKS = {"greenleaf": "Granja 2019 atlas (16 types) -> CD34+ BM",
          "bmm": "BoneMarrowMap CellType (55 types) -> T-cell-depleted BM"}
+# py-viewmastR rows are drawn in colour and bold; the other tools in grey.
+OURS = {"py-viewmastR", "py-viewmastR + augment"}
+METRICS = [("accuracy", "Accuracy (held-out)", "#1f78b4", "#9a9a9a"),
+           ("macro_f1", "Macro-F1 (held-out)", "#a6cee3", "#cfcfcf"),
+           ("query_ari", "ARI vs query authors", "#33a02c", "#6e6e6e")]
 OUT = Path(os.environ.get("BENCH_FIG_DIR", Path(__file__).resolve().parents[1] / "docs" / "img"))
 
 
 def peak_gb(path: Path) -> float:
     m = re.search(r"Maximum resident set size \(kbytes\): (\d+)", path.read_text())
     return int(m.group(1)) / 2**20 if m else np.nan
+
+
+def bold_ours(ax):
+    for t in ax.get_yticklabels():
+        if t.get_text() in OURS:
+            t.set_fontweight("bold")
 
 
 def score(task: str, d: Path):
@@ -67,7 +78,7 @@ def score(task: str, d: Path):
         t = json.loads((d / f"time_{tool}.json").read_text())
         f1 = f1_score(held, ph, labels=ntrain.index, average=None, zero_division=0)
         f1 = pd.Series(f1, index=ntrain.index)
-        rows.append({"task": task, "tool": name, "device": t["device"].upper(),
+        rows.append({"task": task, "tool": name,
                      "accuracy": (ph.to_numpy() == held.to_numpy()).mean(), "macro_f1": f1.mean(),
                      "query_ari": adjusted_rand_score(query, pq),
                      "query_nmi": normalized_mutual_info_score(query, pq),
@@ -96,13 +107,13 @@ def main():
         r = res[res["task"] == task].reset_index(drop=True)
         names = r["tool"].tolist()
         y = np.arange(len(names))
+        ours = np.array([n in OURS for n in names])
         # (a) accuracy, macro-F1, query ARI
         ax = axes[i, 0]
-        for j, (col, lab, c) in enumerate([("accuracy", "Accuracy (held-out)", "#1f78b4"),
-                                           ("macro_f1", "Macro-F1 (held-out)", "#a6cee3"),
-                                           ("query_ari", "ARI vs query authors", "#33a02c")]):
-            ax.barh(y + (j - 1) * 0.27, r[col], height=0.27, color=c, label=lab)
+        for j, (col, lab, c, grey) in enumerate(METRICS):
+            ax.barh(y + (j - 1) * 0.27, r[col], height=0.27, color=np.where(ours, c, grey), label=lab)
         ax.set_yticks(y, names)
+        bold_ours(ax)
         ax.invert_yaxis()
         ax.set_xlim(0, 1)
         ax.set_title(f"({'abcdef'[3 * i]}) {TASKS[task]}", loc="left", fontsize=10)
@@ -119,12 +130,16 @@ def main():
                     color="white" if v < 0.6 else "black")
         ax.set_xticks(range(m.shape[1]), [f"{k}\n(train {nt[k]:,}\nheld {nh[k]:,})" for k in m.columns], fontsize=7)
         ax.set_yticks(range(len(names)), names)
+        bold_ours(ax)
+        for k in np.flatnonzero(ours):
+            ax.add_patch(plt.Rectangle((-0.5, k - 0.5), m.shape[1], 1, fill=False, ec="#e31a1c", lw=2))
         ax.set_title(f"({'abcdef'[3 * i + 1]}) F1 of the 5 types with fewest real training cells", loc="left", fontsize=10)
         fig.colorbar(im, ax=ax, fraction=0.04, label="F1")
         # (c) time and memory
         ax = axes[i, 2]
         tot = r["train_s"] + r["predict_s"]
-        ax.scatter(tot, r["peak_gb"], s=40, c=["#e31a1c" if d == "GPU" else "#333333" for d in r["device"]])
+        ax.scatter(tot[~ours], r["peak_gb"][~ours], s=40, c="#9a9a9a")
+        ax.scatter(tot[ours], r["peak_gb"][ours], s=70, c="#e31a1c", zorder=3)
         cost_labels.append((ax, names, tot.to_numpy(), r["peak_gb"].to_numpy()))
         ax.set_xscale("log")
         span = np.log10(tot.max() / tot.min())
@@ -134,7 +149,7 @@ def main():
         ax.margins(x=0.25, y=0.15)
         ax.set_xlabel("Train + predict time (s, log scale)")
         ax.set_ylabel("Peak memory (GB)")
-        ax.set_title(f"({'abcdef'[3 * i + 2]}) Cost (red = GPU, black = 8 CPU cores)", loc="left", fontsize=10)
+        ax.set_title(f"({'abcdef'[3 * i + 2]}) Cost on 8 CPU cores", loc="left", fontsize=10)
     fig.tight_layout()
     # Label the cost points after layout, so each label can take the first free spot.
     fig.canvas.draw()
@@ -147,7 +162,7 @@ def main():
         for k, n in sorted(enumerate(names), key=lambda kn: -ys[kn[0]]):
             for off, ha, va in spots:
                 t = ax.annotate(n, (xs[k], ys[k]), fontsize=7, xytext=off, textcoords="offset points",
-                                ha=ha, va=va)
+                                ha=ha, va=va, fontweight="bold" if n in OURS else "normal")
                 bb = t.get_window_extent(rend).expanded(1.05, 1.1)
                 ab = ax.get_window_extent(rend)
                 outside = bb.x0 < ab.x0 or bb.x1 > ab.x1 or bb.y0 < ab.y0 or bb.y1 > ab.y1
@@ -157,7 +172,8 @@ def main():
                     break
                 t.remove()
             else:
-                t = ax.annotate(n, (xs[k], ys[k]), fontsize=7, xytext=(4, 2), textcoords="offset points")
+                t = ax.annotate(n, (xs[k], ys[k]), fontsize=7, xytext=(4, 2), textcoords="offset points",
+                                fontweight="bold" if n in OURS else "normal")
                 bb = t.get_window_extent(rend)
             placed.append(bb)
     OUT.mkdir(parents=True, exist_ok=True)

@@ -149,7 +149,7 @@ def bonemarrowmap_split(ref: ad.AnnData, label: str = "CellType_Broad", holdout:
     """Split real reference cells into (train, held out) per type.
 
     Of each type, ``holdout`` of the cells (at most ``max_held``) are held out. Held-out cells
-    are never augmented, so they give an honest accuracy for every model trained on ``train``.
+    are never augmented, so they give an unbiased accuracy for every model trained on ``train``.
     """
     rng = np.random.default_rng(seed)
     held = np.zeros(ref.n_obs, dtype=bool)

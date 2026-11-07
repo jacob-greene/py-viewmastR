@@ -65,7 +65,7 @@ def greenleaf_split(ref):
     ref = ref[real].copy()
     base = ref.obs["BioClassification"].astype(str).str.split("_", n=1).str[1]
     ref.obs["label"] = base.replace(GREENLEAF_MERGE).to_numpy()
-    if "celltype" in ref.obs:  # the lab copy carries the same 16 labels; check they agree
+    if "celltype" in ref.obs:  # the 21,854-cell copy carries the same 16 labels; check they agree
         assert (ref.obs["celltype"].astype(str) == ref.obs["label"]).all()
     assert ref.obs["label"].nunique() == 16
     ref.obs = ref.obs[["label"]]
