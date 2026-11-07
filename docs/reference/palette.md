@@ -1,0 +1,1 @@
+::: viewmastr.palette

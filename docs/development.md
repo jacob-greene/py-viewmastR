@@ -14,6 +14,7 @@ pytest
 | `tests/` | known-answer tests on synthetic data |
 | `scripts/parity_r.py` | agreement with R viewmastR on real data |
 | `scripts/readme_figures.py` | the README figure, as a PNG and as an editable PDF (`docs/img/transfer_umap.pdf`) |
+| `scripts/gen_reference.py` | the API reference pages in `docs/reference/` (re-run after changing a public function) |
 | `docs/` | longer documentation and the README images |
 | `tutorials/` | the notebooks and their data loaders; `readme_panels.py` draws the README figure panels for both the script and tutorial 01 |
 

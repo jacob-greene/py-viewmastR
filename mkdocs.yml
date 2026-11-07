@@ -10,10 +10,17 @@ theme:
   name: material
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.indexes
     - navigation.top
+    - navigation.footer
+    - toc.follow
     - content.code.copy
+    - search.suggest
     - search.highlight
+  icon:
+    repo: fontawesome/brands/github
   palette:
     - scheme: default
       primary: indigo
@@ -54,7 +61,7 @@ plugins:
             separate_signature: true    # signature as a code block (formatted by ruff if installed)
             line_length: 88
             docstring_style: numpy
-            heading_level: 3
+            heading_level: 1    # each function has its own page; its name is the title
             members_order: source
 
 markdown_extensions:
@@ -67,19 +74,50 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Get started:
-      - How to use viewmastR: tutorials/01_how_to.ipynb
+  - Reference:
+      - reference/index.md
+      - Training and inference:
+          - viewmastR(): reference/viewmastR.md
+          - viewmastR_infer(): reference/viewmastR_infer.md
+          - setup_training(): reference/setup_training.md
+          - get_weights(): reference/get_weights.md
+          - TrainingSet: reference/TrainingSet.md
+          - ViewmastrResult: reference/ViewmastrResult.md
+      - Feature selection:
+          - calculate_feature_dispersion(): reference/calculate_feature_dispersion.md
+          - select_features(): reference/select_features.md
+          - get_selected_features(): reference/get_selected_features.md
+          - set_selected_features(): reference/set_selected_features.md
+          - common_features(): reference/common_features.md
+          - plot_feature_dispersion(): reference/plot_feature_dispersion.md
+      - Bulk references, augmentation and deconvolution:
+          - splat_bulk_reference(): reference/splat_bulk_reference.md
+          - augment_data(): reference/augment_data.md
+          - deconvolve_bulk(): reference/deconvolve_bulk.md
+          - Deconvolution: reference/Deconvolution.md
+      - Plotting:
+          - confusion_matrix(): reference/confusion_matrix.md
+          - plot_training_data(): reference/plot_training_data.md
+          - plot_deconvolution(): reference/plot_deconvolution.md
+      - Colours:
+          - palette: reference/palette.md
+      - Model files:
+          - read_3file(): reference/read_3file.md
+          - write_3file(): reference/write_3file.md
   - Articles:
-      - Overview: tutorials/README.md
-      - A deeper look at viewmastR: tutorials/02_in_depth.ipynb
-      - Bulk dataset as a reference: tutorials/03_bulk_reference.ipynb
-      - Augment data: tutorials/04_augment.ipynb
-      - Saved models: tutorials/05_saved_model.ipynb
-      - Extra functions: tutorials/06_extras.ipynb
-      - Large query objects: tutorials/07_big_query.ipynb
-      - Deconvolute bulk RNA-seq: tutorials/08_deconvolute.ipynb
-  - Reference: reference.md
-  - Comparison with R: r_comparison.md
-  - Benchmark: benchmark.md
+      - tutorials/README.md
+      - Get started:
+          - How to use viewmastR: tutorials/01_how_to.ipynb
+      - Advanced:
+          - A deeper look at viewmastR: tutorials/02_in_depth.ipynb
+          - Bulk dataset as a reference: tutorials/03_bulk_reference.ipynb
+          - Augment data: tutorials/04_augment.ipynb
+          - Saved models: tutorials/05_saved_model.ipynb
+          - Extra functions: tutorials/06_extras.ipynb
+          - Large query objects: tutorials/07_big_query.ipynb
+          - Deconvolute bulk RNA-seq: tutorials/08_deconvolute.ipynb
   - Changelog: changelog.md
-  - Development: development.md
+  - More:
+      - Comparison with R: r_comparison.md
+      - Benchmark: benchmark.md
+      - Development: development.md
