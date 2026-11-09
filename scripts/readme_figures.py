@@ -13,7 +13,8 @@ panels are drawn by ``tutorials/readme_panels.py``, which tutorial 01 uses too.
 
 Writes ``docs/img/transfer_umap.png`` and an editable vector copy, ``docs/img/transfer_umap.pdf``:
 three UMAPs, a heatmap of the predicted label against the query authors' label, and under the
-first two UMAPs the number of shared genes.
+first two UMAPs the number of shared genes. On both query UMAPs a ring marks the authors'
+``Mega`` cluster, which viewmastR labels EoBasoMast Precursor.
 The prediction legend lists types called on at least 10 query cells; a mature type is
 listed only if the query authors label that population too (``readme_panels.MATURE``). The
 heatmap keeps all 55 types, so uncalled types show as empty rows.
@@ -33,6 +34,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -46,10 +48,15 @@ plt.rcParams.update(STYLE)
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "img"
 SEED = 20261103
-TITLE = ("ViewmastR: de novo celltyping and refinement based on transfer learning from reference "
-         "annotations")
-FS_SUPTITLE = 34
-FIG_W, FIG_H = 27, 13.5  # inches
+FIG_W, FIG_H = 27, 12.6  # inches
+RING = "Mega"  # author label of the query cluster ringed on both query UMAPs
+
+
+def ring(ax, xy, pad=0.7):
+    """Draw an ellipse around the points ``xy``, ``pad`` UMAP units outside them."""
+    lo, hi = xy.min(0), xy.max(0)
+    ax.add_patch(Ellipse((lo + hi) / 2, *(hi - lo + 2 * pad), fill=False, edgecolor="black",
+                         linewidth=2.5, zorder=3))
 
 
 def compute(args) -> dict:
@@ -132,12 +139,16 @@ def main():
                f"(b) Query: authors' labels\n({n_query:,} cells)", size=QSIZE)
     umap_panel(box(fig, cols_x[2], 5.8, UMAP_W, UMAP_H), d["query_xy"], pred,
                "(c) Query: viewmastR prediction\n(reference labels)", legend=shown, size=QSIZE)
+    ringed = d["query_xy"][d["author"] == RING]
+    print(f"ring: {len(ringed)} {RING} cells, predicted",
+          pred[d["author"] == RING].value_counts().to_dict())
+    for ax in fig.axes[1:3]:
+        ring(ax, ringed)
     fig.text((cols_x[0] + cols_x[1] + UMAP_W) / 2 / FIG_W, 0.5 / FIG_H,
              f"{d['n_genes']:,} common genes used for transfer", ha="center", va="center",
              fontsize=FS_TITLE, fontweight="bold")
 
     heatmap_panel(fig, frac, 23.0, 25.6, 1.5, 11.1, cbar=(25.85, 4.5, 0.18, 3.5))
-    fig.suptitle(TITLE, fontsize=FS_SUPTITLE, y=1 - 0.35 / FIG_H, va="top")
     fig.savefig(OUT / "transfer_umap.png", dpi=150)
     # Vector copy for Illustrator: text and axes stay editable; the scatter layers are 300 dpi images
     fig.savefig(OUT / "transfer_umap.pdf", dpi=300)

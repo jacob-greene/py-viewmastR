@@ -43,9 +43,7 @@ def lineage_order(labels) -> list[str]:
     """Labels in palette order (roughly by lineage); unknown labels last."""
     if set(map(str, labels)) <= set(FINE_ORDER):
         return [k for k in FINE_ORDER if k in set(map(str, labels))]
-    rank = {k: i for i, k in enumerate(ORDER)}
-    key = lambda x: (rank.get(vm.palette.canonical(x), len(ORDER)), x)
-    return sorted(pd.unique(pd.Series(list(labels), dtype=str)), key=key)
+    return vm.plotting.palette_order(labels)
 
 
 def box(fig, left, bottom, width, height):
@@ -98,9 +96,12 @@ def prediction_legend(pred, author) -> tuple[list[str], pd.DataFrame]:
 
 
 def label_fraction(pred, author) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Cell counts of predicted type (rows, all 55) by author label, and the fraction of each column."""
+    """Cell counts of predicted type (rows, all 55) by author label, and the fraction of each column.
+
+    Columns follow the rows they mostly go to, so the heatmap runs along its diagonal.
+    """
     tab = pd.crosstab(np.asarray(pred, dtype=str), np.asarray(author, dtype=str))
-    tab = tab.reindex(index=FINE_ORDER, fill_value=0).loc[:, lineage_order(tab.columns)]
+    tab = vm.plotting.order_diagonal(tab, rows=FINE_ORDER)
     return tab, tab.div(tab.sum(axis=0), axis=1)
 
 

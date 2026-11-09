@@ -160,6 +160,16 @@ def test_confusion_matrix_accuracy_only_for_one_vocabulary():
     plt.close("all")
 
 
+def test_order_diagonal():
+    from viewmastr.plotting import order_diagonal
+    tab = pd.crosstab(pd.Series(["b", "a", "c", "c"]), pd.Series(["c", "a", "b", "b"]))
+    same = order_diagonal(tab, rows=["a", "b", "c"])
+    assert list(same.index) == list(same.columns) == ["a", "b", "c"]
+    # Two vocabularies: each column goes to the row holding most of its cells
+    tab = pd.crosstab(pd.Series(["a", "a", "b", "c", "c"]), pd.Series(["Z", "Z", "X", "Y", "Y"]))
+    assert list(order_diagonal(tab, rows=["c", "b", "a"]).columns) == ["Y", "X", "Z"]
+
+
 def test_uses_counts_only_not_embeddings(data, tmp_path):
     """Predictions depend on the counts matrix and on nothing in obsm/obsp/varm/uns/layers."""
     ref, query = data

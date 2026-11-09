@@ -13,17 +13,44 @@ import pandas as pd
 from . import palette
 
 
+def palette_order(labels) -> list[str]:
+    """Unique ``labels`` in palette order (roughly by lineage); labels not in the palette last."""
+    rank = {k: i for i, k in enumerate(palette.COLORS)}
+    labels = pd.unique(pd.Series(list(labels), dtype=str))
+    return sorted(labels, key=lambda x: (rank.get(palette.canonical(x), len(rank)), x))
+
+
+def order_diagonal(tab: pd.DataFrame, rows: Sequence | None = None) -> pd.DataFrame:
+    """``tab`` (predicted rows, true columns) reordered so its large values run along the diagonal.
+
+    Rows follow ``rows`` if given, else palette order. With one vocabulary, each column sits
+    at the row of its own name, so rows and columns come in the same order. With two
+    vocabularies, each column sits at the row holding most of its cells; columns that share
+    that row are ordered by the mean row of their cells.
+    """
+    same = set(tab.index) <= set(tab.columns) or set(tab.columns) <= set(tab.index)
+    tab = tab.reindex(index=list(rows) if rows is not None else palette_order(tab.index),
+                      fill_value=0)
+    pos = {k: i for i, k in enumerate(tab.index)}
+    share = (tab / tab.sum(0).where(tab.sum(0) > 0, 1)).to_numpy()
+    mean = np.arange(len(tab)) @ share
+    key = {c: (pos[c] if same and c in pos else int(np.argmax(share[:, j])), mean[j], c)
+           for j, c in enumerate(tab.columns)}
+    return tab.loc[:, sorted(tab.columns, key=key.get)]
+
+
 def confusion_matrix(pred: Sequence, gt: Sequence, cols: Mapping[str, str] | None = None,
                      ax=None, fontsize: float = 7):
     """Predicted (rows) against true (columns) labels, coloured by percent of each column.
 
+    Rows and columns are ordered so the matrix is roughly diagonal (``order_diagonal``).
     Cells show counts. When one label set contains the other (one vocabulary), the colour-bar
     label gives the accuracy: the share of cells whose predicted label equals the true label.
     Two different vocabularies that share a few names get no accuracy. ``cols`` maps
     labels to colours; each tick label then sits on a box of its colour.
     """
     pred, gt = pd.Series(np.asarray(pred, dtype=str)), pd.Series(np.asarray(gt, dtype=str))
-    tab = pd.crosstab(pred, gt)
+    tab = order_diagonal(pd.crosstab(pred, gt))
     pct = tab / tab.sum(0) * 100
     rows, columns = set(tab.index), set(tab.columns)
     one_vocabulary = rows <= columns or columns <= rows

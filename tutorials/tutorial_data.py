@@ -1,7 +1,7 @@
 """Data loaders shared by the tutorials.
 
-Public data download on first use into ``cache_dir``. The one local file (the Greenleaf
-reference as h5ad) comes from ``tutorials/data_paths.json``, which is not in git. Copy
+Public data download on first use into ``cache_dir``. The two local files (the Greenleaf
+reference as h5ad, and the ScPCA project of tutorial 07) come from ``tutorials/data_paths.json``, which is not in git. Copy
 ``data_paths.example.json`` to ``data_paths.json`` and fill in your paths.
 
 ==================  ==========================================================  ==========
@@ -19,11 +19,12 @@ BM multiome RNA     Persad et al. 2023 (SEACells), T-cell-depleted bone marrow, 
                     file the Mellon tutorial downloads (Otto et al. 2024)
 CD34 multiome RNA   Persad et al. 2023 (SEACells), Zenodo 6383269,              download
                     CD34+ enriched bone marrow
-Corces bulk RNA     Corces et al. 2016 (GEO GSE74246), as shipped with the      download
-                    viewmastR R package
+Corces bulk RNA     Corces et al. 2016 (GEO GSE74246), counts from the          download
+                    viewmastR R package repository
 AML scRNA-seq       van Galen et al. 2019 (GEO GSE116256), Seq-Well, the 16     download
                     diagnosis (day 0) AML bone marrow samples
-Large query         the BoneMarrowMap atlas above, opened on disk               download
+ScPCA SCPCP000003   pediatric T-ALL, AML and T/myeloid MPAL, 511,195 cells,     local path
+                    the merged AnnData of ScPCA Portal project SCPCP000003
 ==================  ==========================================================  ==========
 """
 
@@ -423,11 +424,18 @@ def vangalen_aml() -> ad.AnnData:
 
 
 def large_query() -> ad.AnnData:
-    """The large query of the big-query tutorial: the BoneMarrowMap atlas, opened on disk.
+    """The large query of the big-query tutorial: ScPCA project SCPCP000003, opened on disk.
 
-    Raw counts, 263,159 cells x 34,009 genes, read with ``backed="r"`` so the counts stay on
-    disk. ``.obs`` keeps ``CellType_Broad`` and ``Study``. To label your own large query,
-    open it the same way: ``anndata.read_h5ad(path, backed="r")``.
+    Pediatric leukaemia (T-ALL, AML and T/myeloid mixed phenotype acute leukaemia),
+    511,195 cells. Download the project as merged AnnData from the ScPCA Portal
+    (https://scpca.alexslemonade.org/projects/SCPCP000003; free account) and set
+    ``scpca_SCPCP000003`` in ``data_paths.json`` to ``SCPCP000003_merged_rna.h5ad``.
+    The file is read with ``backed="r"``, so the counts stay on disk. Gene symbols replace
+    the Ensembl IDs as gene names, so the query matches the reference genes; a symbol
+    shared by two or more genes keeps the Ensembl IDs.
     """
-    path = _download(BONEMARROWMAP, "BoneMarrowMap_Annotated_Dataset_expandedFeatures.h5ad", BONEMARROWMAP_MD5)
-    return ad.read_h5ad(path, backed="r")
+    query = ad.read_h5ad(config()["scpca_SCPCP000003"], backed="r")
+    ids = query.var_names.to_series()
+    symbol = query.var["gene_symbol"].astype(str).where(query.var["gene_symbol"].notna(), ids)
+    query.var_names = symbol.where(~symbol.duplicated(keep=False), ids).to_numpy()
+    return query

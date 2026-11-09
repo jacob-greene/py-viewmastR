@@ -1,5 +1,6 @@
 {
   "greenleaf_reference": "/path/to/greenleaf_bone_marrow_counts.h5ad",
   "greenleaf_label": "celltype",
+  "scpca_SCPCP000003": "/path/to/SCPCP000003_merged_rna.h5ad",
   "cache_dir": "/path/to/a/download/cache"
 }
