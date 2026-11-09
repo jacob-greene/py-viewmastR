@@ -48,13 +48,6 @@ query.obs["viewmastR_pred"]            # predicted cell type
 
 ![The viewmastR workflow: shared genes, training, labelling the query](docs/img/workflow.svg)
 
-The [tutorials](tutorials/README.md) explain each step:
-
-- Start with [How to use viewmastR](tutorials/01_how_to.ipynb). It runs the whole workflow and
-  makes the figure below.
-- [Augment data](tutorials/04_augment.ipynb) balances rare cell types before training.
-- [Saved models](tutorials/05_saved_model.ipynb) labels new data with `viewmastR_infer()`.
-
 ## Example: bone marrow
 
 ![viewmastR labels a bone marrow dataset with the 55 BoneMarrowMap cell types](docs/img/transfer_umap.png)
@@ -68,8 +61,7 @@ On held-out real reference cells, accuracy is 72.9 %.
 
 ## Citation
 
-If you use py-viewmastR, please cite the viewmastR R package, and the datasets you use
-(the [tutorials](tutorials/README.md) list them):
+If you use py-viewmastR, please cite the viewmastR R package:
 
 - Furlan SN. viewmastR: cell-type classification for single-cell genomics.
   https://github.com/furlan-lab/viewmastR
