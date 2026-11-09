@@ -6,10 +6,6 @@ py-viewmastR is a Python port of the R package [viewmastR](https://github.com/fu
 It learns cell types from a labelled reference dataset and predicts them for a query dataset.
 Training runs in viewmastR's Rust code ([burn](https://burn.dev)), compiled as a Python extension.
 
-- Works on [AnnData](https://anndata.readthedocs.io), also on-disk objects of millions of cells.
-- Mirrors the R API and reads and writes R viewmastR model files
-  ([comparison with R](docs/r_comparison.md)).
-
 Documentation: <https://jacob-greene.github.io/py-viewmastR/>. To build from source and run the
 tests, see [development](docs/development.md).
 
@@ -48,7 +44,7 @@ query.obs["viewmastR_pred"]            # predicted cell type
 
 ![The viewmastR workflow: shared genes, training, labelling the query](docs/img/workflow.svg)
 
-## Example: bone marrow
+## Example: Cell type refinement using the bone marrow map reference atlas
 
 ![viewmastR labels a bone marrow dataset with the 55 BoneMarrowMap cell types](docs/img/transfer_umap.png)
 
