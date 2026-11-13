@@ -54,7 +54,6 @@ dataset (8,627 cells, 18 author labels).
 (**d**) Fraction of each author label (column) given each predicted type (row).
 In (**b**) and (**c**), the ring marks the authors' `Mega` cluster (24 cells).
 viewmastR labels all of them EoBasoMast Precursor (EBMP).
-On held-out real reference cells, accuracy is 72.9 %.
 [`scripts/readme_figures.py`](scripts/readme_figures.py) makes the figure.
 
 ## Citation
